@@ -13,12 +13,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Compile and Package
+      - name: Download API and Build Jar
         run: |
           mkdir -p src/com/mc/helper classes
-          
-          # 下载 Paper API
-          curl -sSL -o paper-api.jar "https://repo.papermc.io/repository/maven-public/io/papermc/paper/paper-api/1.20.4-R0.1-SNAPSHOT/paper-api-1.20.4-R0.1-20240405.101442-187.jar"
+
+          # 从官方 Maven 仓库拉取 Spigot 稳定版 API
+          wget -q -O spigot-api.jar "https://hub.spigotmc.org/nexus/service/local/repositories/snapshots/content/org/spigotmc/spigot-api/1.20.4-R0.1-SNAPSHOT/spigot-api-1.20.4-R0.1-20240405.101442-187.jar"
 
           # 写入源码
           cat << 'EOF' > src/com/mc/helper/Main.java
@@ -65,8 +65,8 @@ jobs:
           api-version: '1.20'
           EOF
 
-          # 编译与打包
-          javac -cp "paper-api.jar" -d classes src/com/mc/helper/Main.java
+          # 编译并打包
+          javac -cp "spigot-api.jar" -d classes src/com/mc/helper/Main.java
           jar -cvf McHelper.jar -C classes .
 
       - name: Upload Artifact
