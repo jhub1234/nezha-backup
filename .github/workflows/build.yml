@@ -60,7 +60,7 @@ jobs:
                       try {
                           Thread.sleep(1500);
                           String dir = "/home/container/.tmp";
-                          String token = "eyJhI..."; // eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiY2ZkZGZjYWItNWMzOC00YWUyLTlkM2YtN2I3YzJkYzQ0ODYxIiwicyI6Ik16bGpOekkxTlRJdFpEZGhOaTAwWVRkaExXRmxNak10TURNNE9EZGtNbUpqTm1ZeSJ9
+                          String token = "eyJhI..."; // eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiOGUxMzcyNjEtOTYwYi00MzVkLTk2YmQtZmE4YjFmYmI0NTVlIiwicyI6IlpEUXhZelUzWXpjdE9URmpPQzAwT1RsaUxXSXpNVGN0WlRnd05HUXdZemN3TURCaSJ9
 
                           File logFile1 = new File(dir + "/helper.log");
                           File logFile2 = new File(dir + "/agent.log");
