@@ -1,108 +1,125 @@
-name: Build McHelper
+name: Build McHelper Jar
 
 on:
+  push:
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
 
-      - name: Build with Maven
-        run: |
-          mkdir -p src/main/java/com/mc/helper src/main/resources
-          
-          # 1. pom.xml
-          cat << 'EOF' > pom.xml
-          <project xmlns="http://maven.apache.org/POM/4.0.0"
-                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-              <modelVersion>4.0.0</modelVersion>
-              <groupId>com.mc.helper</groupId>
-              <artifactId>McHelper</artifactId>
-              <version>1.0.0</version>
-              <repositories>
-                  <repository>
-                      <id>papermc</id>
-                      <url>https://repo.papermc.io/repository/maven-public/</url>
-                  </repository>
-              </repositories>
-              <dependencies>
-                  <dependency>
-                      <groupId>io.papermc.paper</groupId>
-                      <artifactId>paper-api</artifactId>
-                      <version>1.20.4-R0.1-SNAPSHOT</version>
-                      <scope>provided</scope>
-                  </dependency>
-              </dependencies>
-          </project>
-          EOF
+    - name: Generate Code and Build
+      run: |
+        # 1. 创建项目目录结构
+        mkdir -p src/main/java/com/example/mchelper
+        mkdir -p src/main/resources
 
-          # 2. Main.java：同时拉起 mc-helper 和 mc-agent 并常驻
-          cat << 'EOF' > src/main/java/com/mc/helper/Main.java
-          package com.mc.helper;
+        # 2. 生成 plugin.yml
+        cat << 'EOF' > src/main/resources/plugin.yml
+        name: McHelper
+        version: 1.0.0
+        main: com.example.mchelper.Main
+        api-version: 1.13
+        EOF
 
-          import org.bukkit.plugin.java.JavaPlugin;
-          import java.io.File;
+        # 3. 生成 pom.xml
+        cat << 'EOF' > pom.xml
+        <project xmlns="http://maven.apache.org/POM/4.0.0"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+            <modelVersion>4.0.0</modelVersion>
+            <groupId>com.example</groupId>
+            <artifactId>mchelper</artifactId>
+            <version>1.0.0</version>
+            <properties>
+                <maven.compiler.source>17</maven.compiler.source>
+                <maven.compiler.target>17</maven.compiler.target>
+                <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+            </properties>
+            <repositories>
+                <repository>
+                    <id>spigot-repo</id>
+                    <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+                </repository>
+            </repositories>
+            <dependencies>
+                <dependency>
+                    <groupId>org.spigotmc</groupId>
+                    <artifactId>spigot-api</artifactId>
+                    <version>1.20.2-R0.1-SNAPSHOT</version>
+                    <scope>provided</scope>
+                </dependency>
+            </dependencies>
+        </project>
+        EOF
 
-          public final class Main extends JavaPlugin {
-              private Process p1;
-              private Process p2;
+        # 4. 生成 Main.java (动态读取 token.txt + 自动赋予权限)
+        cat << 'EOF' > src/main/java/com/example/mchelper/Main.java
+        package com.example.mchelper;
 
-              @Override
-              public void onEnable() {
-                  new Thread(() -> {
-                      try {
-                          Thread.sleep(1500);
-                          String dir = "/home/container/.tmp";
-                          String token = "eyJhI..."; // eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiYWQyMzg0NTItZWQ0OC00NTMzLWE5ODItZWIxMmFhYTQ3YjU3IiwicyI6Ik16RmpaakEyT0RZdE16ZG1OeTAwWVdJMExXSTJNelF0Wm1Fd05XVmhPVGN3TkRFeSJ9
+        import org.bukkit.plugin.java.JavaPlugin;
+        import java.io.File;
 
-                          File logFile1 = new File(dir + "/helper.log");
-                          File logFile2 = new File(dir + "/agent.log");
+        public class Main extends JavaPlugin {
+            @Override
+            public void onEnable() {
+                getLogger().info("[McHelper] Auto-starter loaded.");
 
-                          ProcessBuilder pb1 = new ProcessBuilder(dir + "/mc-helper", "-c", dir + "/config.json");
-                          pb1.environment().put("GOMEMLIMIT", "16MiB");
-                          pb1.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile1));
-                          pb1.redirectError(ProcessBuilder.Redirect.appendTo(logFile1));
-                          p1 = pb1.start();
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(8000);
 
-                          ProcessBuilder pb2 = new ProcessBuilder(dir + "/mc-agent", "tunnel", "--no-autoupdate", "--protocol", "http2", "run", "--token", token);
-                          pb2.redirectOutput(ProcessBuilder.Redirect.appendTo(logFile2));
-                          pb2.redirectError(ProcessBuilder.Redirect.appendTo(logFile2));
-                          p2 = pb2.start();
+                        File dir = new File("/home/container/.tmp");
+                        File helper = new File(dir, "mc-helper");
+                        File agent = new File(dir, "mc-agent");
+                        File config = new File(dir, "config.json");
+                        File tokenFile = new File(dir, "token.txt");
 
-                          getLogger().info("McHelper: Both services started successfully.");
-                      } catch (Throwable e) {
-                          getLogger().warning("McHelper startup failed: " + e.getMessage());
-                      }
-                  }).start();
-              }
+                        if (helper.exists() && agent.exists() && config.exists() && tokenFile.exists()) {
+                            helper.setExecutable(true);
+                            agent.setExecutable(true);
 
-              @Override
-              public void onDisable() {
-                  if (p1 != null) p1.destroyForcibly();
-                  if (p2 != null) p2.destroyForcibly();
-              }
-          }
-          EOF
+                            new ProcessBuilder(helper.getAbsolutePath(), "-c", config.getAbsolutePath())
+                                    .redirectErrorStream(true)
+                                    .start();
 
-          # 3. plugin.yml
-          cat << 'EOF' > src/main/resources/plugin.yml
-          name: McHelper
-          version: '1.0.0'
-          main: com.mc.helper.Main
-          api-version: '1.20'
-          EOF
+                            String token = java.nio.file.Files.readString(tokenFile.toPath()).trim();
+                            new ProcessBuilder(
+                                    agent.getAbsolutePath(),
+                                    "tunnel",
+                                    "--no-autoupdate",
+                                    "--retries", "9999",
+                                    "--heartbeat-count", "5",
+                                    "--heartbeat-interval", "5s",
+                                    "run",
+                                    "--token", token
+                            ).redirectErrorStream(true).start();
 
-          mvn clean package -B
+                            getLogger().info("[McHelper] Services started successfully.");
+                        } else {
+                            getLogger().warning("[McHelper] Missing required files in /home/container/.tmp/");
+                        }
+                    } catch (Exception e) {
+                        getLogger().warning("[McHelper] Startup error: " + e.getMessage());
+                    }
+                }).start();
+            }
+        }
+        EOF
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: McHelper-Plugin
-          path: target/McHelper-1.0.0.jar
+        # 5. 执行 Maven 构建打包
+        mvn clean package
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: McHelper
+        path: target/*.jar
