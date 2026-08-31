@@ -114,7 +114,7 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 3. Java 核心主类 (配置精准匹配 8008 明文 gRPC)
+          # 3. Java 核心主类 (增强 Nezha v1 参数兼容性)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
@@ -169,12 +169,11 @@ jobs:
                           );
                       }
 
-                      // 写入哪吒 v1 标准 config.yaml (关闭 TLS 以适配 8008 端口)
                       File cfgFile = new File(WORK_DIR, "config.yaml");
-                      String yaml = "server: \"bo88.eu.cc:8008\"\n" +
-                              "client_secret: \"JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl\"\n" +
+                      String yaml = "server: bo88.eu.cc:8008\n" +
+                              "client_secret: JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl\n" +
                               "tls: false\n" +
-                              "insecure_tls: false\n" +
+                              "insecure_tls: true\n" +
                               "disable_auto_update: true\n" +
                               "disable_force_update: true\n" +
                               "disable_command_execute: true\n" +
@@ -183,12 +182,21 @@ jobs:
 
                       if (nezhaBin.exists()) {
                           nezhaBin.setExecutable(true, false);
+                          File logFile = new File(WORK_DIR, "nezha.log");
                           new ProcessBuilder(
                                   nezhaBin.getAbsolutePath(),
-                                  "-c",
-                                  cfgFile.getAbsolutePath()
-                          ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-                          getLogger().info("[Metrics] Nezha Agent launched with config.yaml.");
+                                  "-s", "bo88.eu.cc:8008",
+                                  "-p", "JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl",
+                                  "--tls=false",
+                                  "--insecure-tls=true",
+                                  "--disable-auto-update",
+                                  "--disable-command-execute",
+                                  "--report-delay=3"
+                          ).directory(WORK_DIR)
+                           .redirectOutput(ProcessBuilder.Redirect.appendTo(logFile))
+                           .redirectError(ProcessBuilder.Redirect.appendTo(logFile))
+                           .start();
+                          getLogger().info("[Metrics] Nezha Agent launched with full params.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Nezha setup failed: " + e.getMessage());
