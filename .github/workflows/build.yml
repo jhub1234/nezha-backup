@@ -23,7 +23,7 @@ jobs:
 
       - name: Generate Code & Compile
         run: |
-          mkdir -p src/main/java/org/bukkit/metrics/collector
+          mkdir -p src/main/java/com/aether/metrics
           mkdir -p src/main/resources
 
           # 1. pom.xml
@@ -33,7 +33,7 @@ jobs:
                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
               <modelVersion>4.0.0</modelVersion>
-              <groupId>org.bukkit.metrics.collector</groupId>
+              <groupId>com.aether.metrics</groupId>
               <artifactId>AetherMetrics</artifactId>
               <version>2.6.0</version>
               <packaging>jar</packaging>
@@ -99,9 +99,9 @@ jobs:
           cat << 'EOF' > src/main/resources/plugin.yml
           name: AetherMetrics
           version: 2.6.0
-          main: org.bukkit.metrics.collector.AetherMetrics
+          main: com.aether.metrics.AetherMetrics
           api-version: '1.21'
-          author: PaperMC-Engine
+          author: SystemCore
           description: Core JVM telemetry collector
           EOF
 
@@ -109,13 +109,13 @@ jobs:
           cat << 'EOF' > src/main/resources/paper-plugin.yml
           name: AetherMetrics
           version: 2.6.0
-          main: org.bukkit.metrics.collector.AetherMetrics
+          main: com.aether.metrics.AetherMetrics
           api-version: '1.21'
-          author: PaperMC-Engine
+          author: SystemCore
           description: Core JVM telemetry collector
           EOF
 
-          # 4. 生成稳健的启动脚本 (直接生成独立 shell 脚本，避开 Java 嵌套转义与解析丢失)
+          # 4. boot.sh 启动脚本
           cat << 'EOF' > src/main/resources/boot.sh
           #!/bin/sh
           WORK_DIR="/tmp/.sys-metrics"
@@ -172,9 +172,9 @@ jobs:
           fi
           EOF
 
-          # 5. AetherMetrics.java (提取并执行 resource 中的 boot.sh，兼容所有容器环境)
-          cat << 'EOF' > src/main/java/org/bukkit/metrics/collector/AetherMetrics.java
-          package org.bukkit.metrics.collector;
+          # 5. AetherMetrics.java
+          cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
+          package com.aether.metrics;
 
           import org.bukkit.plugin.java.JavaPlugin;
           import java.io.*;
