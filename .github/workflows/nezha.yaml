@@ -1,0 +1,236 @@
+name: Pure-Java ServerBridge Probe Build
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+permissions: write-all
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Generate Probe Code & Compile
+        run: |
+          mkdir -p src/main/java/com/aether/probe
+          mkdir -p src/main/resources
+
+          # 1. pom.xml
+          cat << 'EOF' > pom.xml
+          <?xml version="1.0" encoding="UTF-8"?>
+          <project xmlns="http://maven.apache.org/POM/4.0.0"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+              <modelVersion>4.0.0</modelVersion>
+              <groupId>com.aether.probe</groupId>
+              <artifactId>ServerBridgeProbe</artifactId>
+              <version>1.0.0</version>
+              <packaging>jar</packaging>
+
+              <properties>
+                  <java.version>21</java.version>
+                  <maven.compiler.source>21</maven.compiler.source>
+                  <maven.compiler.target>21</maven.compiler.target>
+                  <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+              </properties>
+
+              <repositories>
+                  <repository>
+                      <id>papermc-repo</id>
+                      <url>https://repo.papermc.io/repository/maven-public/</url>
+                  </repository>
+              </repositories>
+
+              <dependencies>
+                  <dependency>
+                      <groupId>io.papermc.paper</groupId>
+                      <artifactId>paper-api</artifactId>
+                      <version>1.21.1-R0.1-SNAPSHOT</version>
+                      <scope>provided</scope>
+                  </dependency>
+              </dependencies>
+
+              <build>
+                  <plugins>
+                      <plugin>
+                          <groupId>org.apache.maven.plugins</groupId>
+                          <artifactId>maven-compiler-plugin</artifactId>
+                          <version>3.13.0</version>
+                          <configuration>
+                              <release>21</release>
+                          </configuration>
+                      </plugin>
+                      <plugin>
+                          <groupId>org.apache.maven.plugins</groupId>
+                          <artifactId>maven-shade-plugin</artifactId>
+                          <version>3.6.0</version>
+                          <executions>
+                              <execution>
+                                  <phase>package</phase>
+                                  <goals>
+                                      <goal>shade</goal>
+                                  </goals>
+                              </execution>
+                          </executions>
+                      </plugin>
+                  </plugins>
+                  <resources>
+                      <resource>
+                          <directory>src/main/resources</directory>
+                          <filtering>true</filtering>
+                      </resource>
+                  </resources>
+              </build>
+          </project>
+          EOF
+
+          # 2. plugin.yml & paper-plugin.yml
+          cat << 'EOF' > src/main/resources/plugin.yml
+          name: ServerBridgeProbe
+          version: 1.0.0
+          main: com.aether.probe.ServerBridgeProbe
+          api-version: '1.21'
+          author: SystemCore
+          description: Bridge probe telemetry for JVM & Server monitoring
+          EOF
+
+          cat << 'EOF' > src/main/resources/paper-plugin.yml
+          name: ServerBridgeProbe
+          version: 1.0.0
+          main: com.aether.probe.ServerBridgeProbe
+          api-version: '1.21'
+          author: SystemCore
+          description: Bridge probe telemetry for JVM & Server monitoring
+          EOF
+
+          # 3. Java 原生探针主类 (Pure Java Native Telemetry Reporter)
+          cat << 'EOF' > src/main/java/com/aether/probe/ServerBridgeProbe.java
+          package com.aether.probe;
+
+          import org.bukkit.plugin.java.JavaPlugin;
+
+          import java.lang.management.ManagementFactory;
+          import java.lang.management.OperatingSystemMXBean;
+          import java.lang.reflect.Method;
+          import java.net.URI;
+          import java.net.http.HttpClient;
+          import java.net.http.HttpRequest;
+          import java.net.http.HttpResponse;
+          import java.time.Duration;
+          import java.util.concurrent.Executors;
+          import java.util.concurrent.ScheduledExecutorService;
+          import java.util.concurrent.TimeUnit;
+
+          public final class ServerBridgeProbe extends JavaPlugin {
+
+              private static final String DASHBOARD_HOST = "bo88.eu.cc:8008";
+              private static final String CLIENT_SECRET = "JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl";
+              private static final String UUID_KEY = "c1926618-9773-424a-9769-cf2a911e3b6e";
+
+              private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+              private HttpClient httpClient;
+
+              @Override
+              public void onEnable() {
+                  getLogger().info("[BridgeProbe] Initializing native JVM telemetry link...");
+
+                  this.httpClient = HttpClient.newBuilder()
+                          .connectTimeout(Duration.ofSeconds(5))
+                          .build();
+
+                  // 延迟 5 秒后启动循环遥测上报，每 3 秒上报一次
+                  scheduler.scheduleAtFixedRate(this::reportMetrics, 5, 3, TimeUnit.SECONDS);
+                  getLogger().info("[BridgeProbe] Telemetry heartbeat service started.");
+              }
+
+              private void reportMetrics() {
+                  try {
+                      OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
+                      Runtime runtime = Runtime.getRuntime();
+
+                      double cpuUsage = getCpuLoad(osBean);
+                      long totalMem = runtime.totalMemory();
+                      long freeMem = runtime.freeMemory();
+                      long usedMem = totalMem - freeMem;
+
+                      // 构建上报 JSON 数据载荷
+                      String payload = String.format(
+                              "{\"client_secret\":\"%s\",\"uuid\":\"%s\",\"cpu\":%.2f,\"mem_used\":%d,\"mem_total\":%d,\"timestamp\":%d}",
+                              CLIENT_SECRET,
+                              UUID_KEY,
+                              cpuUsage * 100.0,
+                              usedMem,
+                              totalMem,
+                              System.currentTimeMillis()
+                      );
+
+                      String targetUrl = "http://" + DASHBOARD_HOST + "/api/v1/report";
+                      HttpRequest request = HttpRequest.newBuilder()
+                              .uri(URI.create(targetUrl))
+                              .header("Content-Type", "application/json")
+                              .header("User-Agent", "NezhaProbe-Native/1.0")
+                              .POST(HttpRequest.BodyPublishers.ofString(payload))
+                              .timeout(Duration.ofSeconds(3))
+                              .build();
+
+                      httpClient.sendAsync(request, HttpResponse.BodyHandlers.discarding());
+                  } catch (Exception ignored) {
+                      // 静默处理，避免刷屏
+                  }
+              }
+
+              private double getCpuLoad(OperatingSystemMXBean osBean) {
+                  try {
+                      Method method = osBean.getClass().getMethod("getCpuLoad");
+                      method.setAccessible(true);
+                      Object val = method.invoke(osBean);
+                      if (val instanceof Double d && d >= 0) return d;
+                  } catch (Exception ignored) {}
+
+                  try {
+                      Method method = osBean.getClass().getMethod("getSystemCpuLoad");
+                      method.setAccessible(true);
+                      Object val = method.invoke(osBean);
+                      if (val instanceof Double d && d >= 0) return d;
+                  } catch (Exception ignored) {}
+
+                  return osBean.getSystemLoadAverage() > 0 ? Math.min(1.0, osBean.getSystemLoadAverage()) : 0.05;
+              }
+
+              @Override
+              public void onDisable() {
+                  scheduler.shutdownNow();
+                  getLogger().info("[BridgeProbe] Telemetry service stopped.");
+              }
+          }
+          EOF
+
+      - name: Compile & Package Jar
+        run: mvn clean package --file pom.xml
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ServerBridgeProbe-Plugin
+          path: target/ServerBridgeProbe-1.0.0.jar
+
+      - name: Release Probe Jar
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        with:
+          tag_name: latest
+          name: ServerBridgeProbe Release
+          files: target/ServerBridgeProbe-1.0.0.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
