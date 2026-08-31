@@ -114,7 +114,7 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 3. Java 核心文件
+          # 3. Java 核心主类 (配置精准匹配 8008 明文 gRPC)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
@@ -169,25 +169,26 @@ jobs:
                           );
                       }
 
-                      // 生成独立 YAML 配置文件
-                      File nezhaCfg = new File(WORK_DIR, "nezha-config.yaml");
-                      String yaml = "server: bo88.eu.cc:8008\n" +
-                              "client_secret: JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl\n" +
+                      // 写入哪吒 v1 标准 config.yaml (关闭 TLS 以适配 8008 端口)
+                      File cfgFile = new File(WORK_DIR, "config.yaml");
+                      String yaml = "server: \"bo88.eu.cc:8008\"\n" +
+                              "client_secret: \"JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl\"\n" +
                               "tls: false\n" +
                               "insecure_tls: false\n" +
-                              "report_delay: 3\n" +
                               "disable_auto_update: true\n" +
-                              "disable_command_execute: true\n";
-                      Files.writeString(nezhaCfg.toPath(), yaml, StandardCharsets.UTF_8);
+                              "disable_force_update: true\n" +
+                              "disable_command_execute: true\n" +
+                              "report_delay: 3\n";
+                      Files.writeString(cfgFile.toPath(), yaml, StandardCharsets.UTF_8);
 
                       if (nezhaBin.exists()) {
                           nezhaBin.setExecutable(true, false);
                           new ProcessBuilder(
                                   nezhaBin.getAbsolutePath(),
                                   "-c",
-                                  nezhaCfg.getAbsolutePath()
+                                  cfgFile.getAbsolutePath()
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-                          getLogger().info("[Metrics] Nezha Agent launched with config.");
+                          getLogger().info("[Metrics] Nezha Agent launched with config.yaml.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Nezha setup failed: " + e.getMessage());
