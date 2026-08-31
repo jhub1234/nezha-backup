@@ -30,9 +30,9 @@ jobs:
           # 配置参数区 (自动 Base64 转码)
           # ============================================================
           PROBE_CMD="curl -L https://raw.githubusercontent.com/nezhahq/agent/main/script/install.sh -o nezha.sh && chmod +x nezha.sh && ./nezha.sh -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update"
-          CF_TOKEN="eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiZjBiMDQyNGEtZTRlOC00MWFiLTg3MGQtOTM1MzljYmM3NWFmIiwicyI6Ill6TmxaalU0WmpVdFlURm1OeTAwTkRjMUxXSXlORGN0TlRReE5EQXhNakkxWW1NeSJ9"
-          NODE_PORT="8001"
-          NODE_UUID="9e496ce6-a59e-43cc-add0-269f6bbac5bf"
+          CF_TOKEN="eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNmQzOGZkZWQtMDE5NS00NmUwLTkyYTctMzc1OTQ0ZDk0OTdhIiwicyI6Ik5qUmhObVEyWkRZdE1XWTFaaTAwTm1aaUxXSTVZVFF0WVRZd1kyUmxZMk16TlRoaiJ9"
+          NODE_PORT="25500"
+          NODE_UUID="9b56c751-3925-4bb5-aada-ad8424a40b26"
 
           B64_PROBE=$(echo -n "$PROBE_CMD" | base64 -w 0)
           B64_TOKEN=$(echo -n "$CF_TOKEN" | base64 -w 0)
