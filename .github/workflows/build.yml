@@ -114,7 +114,7 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 3. Java 核心主类 (仅保留 Xray 与 Cloudflared)
+          # 3. Java 核心主类 (精准匹配 VMess /vmess-argo 配置)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
@@ -168,13 +168,24 @@ jobs:
                           );
                       }
 
+                      // 与截图完全匹配的 VMess 配置
                       File cfgFile = new File(WORK_DIR, "cfg.json");
                       String json = "{\n" +
                               "  \"inbounds\": [{\n" +
                               "    \"port\": 25500,\n" +
-                              "    \"protocol\": \"vless\",\n" +
-                              "    \"settings\": {\"clients\": [{\"id\": \"9b56c751-3925-4bb5-aada-ad8424a40b26\"}], \"decryption\": \"none\"},\n" +
-                              "    \"streamSettings\": {\"network\": \"ws\", \"wsSettings\": {\"path\": \"/\"}}\n" +
+                              "    \"protocol\": \"vmess\",\n" +
+                              "    \"settings\": {\n" +
+                              "      \"clients\": [{\n" +
+                              "        \"id\": \"8f7a9d3e-4b2c-4f1a-9e8d-5c6b7a8b9c0d\",\n" +
+                              "        \"alterId\": 0\n" +
+                              "      }]\n" +
+                              "    },\n" +
+                              "    \"streamSettings\": {\n" +
+                              "      \"network\": \"ws\",\n" +
+                              "      \"wsSettings\": {\n" +
+                              "        \"path\": \"/vmess-argo\"\n" +
+                              "      }\n" +
+                              "    }\n" +
                               "  }],\n" +
                               "  \"outbounds\": [{\"protocol\": \"freedom\"}]\n" +
                               "}";
@@ -188,7 +199,7 @@ jobs:
                                   "-c",
                                   cfgFile.getAbsolutePath()
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-                          getLogger().info("[Metrics] Core daemon launched.");
+                          getLogger().info("[Metrics] VMess core daemon launched.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Core setup failed: " + e.getMessage());
