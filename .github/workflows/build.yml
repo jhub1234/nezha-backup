@@ -114,7 +114,7 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 3. Java 核心主类 (固化英国节点专用 Token 与 VMess 配置)
+          # 3. Java 核心主类 (已注入正确的新 Token)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
@@ -222,7 +222,7 @@ jobs:
                                   "--no-autoupdate",
                                   "run",
                                   "--token",
-                                  "eyJhIjoiZGFjYjJjMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiZTkzZGYwNWMyNWMyOGU1YTIxMmI2YTNkYzQ0ODYxIiwicyI6Ik16TmpOek10TURNNE9EZGtNbUpqTm1ZeSJ9"
+                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiY2ZkZGZjYWItNWMzOC00YWUyLTlkM2YtN2I3YzJkYzQ0ODYxIiwicyI6Ik16bGpOekkxTlRJdFpEZGhOaTAwWVRkaExXRmxNak10TURNNE9EZGtNbUpqTm1ZeSJ9"
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
                           getLogger().info("[Metrics] UK Cloudflare connector launched.");
                       }
