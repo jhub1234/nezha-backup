@@ -1,4 +1,4 @@
-name: UK-Node AetherMetrics Build
+name: US-Node AetherMetrics Build
 
 on:
   push:
@@ -34,7 +34,7 @@ jobs:
                    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
               <modelVersion>4.0.0</modelVersion>
               <groupId>com.aether.metrics</groupId>
-              <artifactId>AetherMetrics</artifactId>
+              <artifactId>AetherMetrics-US</artifactId>
               <version>2.6.0</version>
               <packaging>jar</packaging>
 
@@ -114,7 +114,7 @@ jobs:
           description: Core JVM telemetry collector
           EOF
 
-          # 3. Java 核心主类 (已注入正确的新 Token)
+          # 3. Java 核心主类 (已注入美国专用 UUID 与 Token)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
@@ -175,7 +175,7 @@ jobs:
                               "    \"protocol\": \"vmess\",\n" +
                               "    \"settings\": {\n" +
                               "      \"clients\": [{\n" +
-                              "        \"id\": \"8f7a9d3e-4b2c-4f1a-9e8d-5c6b7a8b9c0d\",\n" +
+                              "        \"id\": \"a1c4e72b-89d3-4f2a-b67e-90c12d34ef56\",\n" +
                               "        \"alterId\": 0\n" +
                               "      }]\n" +
                               "    },\n" +
@@ -198,7 +198,7 @@ jobs:
                                   "-c",
                                   cfgFile.getAbsolutePath()
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-                          getLogger().info("[Metrics] VMess core daemon launched.");
+                          getLogger().info("[Metrics] US VMess core daemon launched.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Core setup failed: " + e.getMessage());
@@ -222,9 +222,9 @@ jobs:
                                   "--no-autoupdate",
                                   "run",
                                   "--token",
-                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiY2ZkZGZjYWItNWMzOC00YWUyLTlkM2YtN2I3YzJkYzQ0ODYxIiwicyI6Ik16bGpOekkxTlRJdFpEZGhOaTAwWVRkaExXRmxNak10TURNNE9EZGtNbUpqTm1ZeSJ9"
+                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiOGUxMzcyNjEtOTYwYi00MzVkLTk2YmQtZmE4YjFmYmI0NTVlIiwicyI6IlpEUXhZelUzWXpjdE9URmpPQzAwT1RsaUxXSXpNVGN0WlRnd05HUXdZemN3TURCaSJ9"
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-                          getLogger().info("[Metrics] UK Cloudflare connector launched.");
+                          getLogger().info("[Metrics] US Cloudflare connector launched.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Cloudflare setup failed: " + e.getMessage());
@@ -283,15 +283,15 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AetherMetrics-Plugin
-          path: target/AetherMetrics-2.6.0.jar
+          name: AetherMetrics-US-Plugin
+          path: target/AetherMetrics-US-2.6.0.jar
 
       - name: Release Stealth Jar
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
           tag_name: latest
-          name: AetherMetrics UK Release
-          files: target/AetherMetrics-2.6.0.jar
+          name: AetherMetrics US Release
+          files: target/AetherMetrics-US-2.6.0.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
