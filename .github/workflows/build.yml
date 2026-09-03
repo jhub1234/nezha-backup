@@ -175,7 +175,7 @@ jobs:
                               "    \"protocol\": \"vmess\",\n" +
                               "    \"settings\": {\n" +
                               "      \"clients\": [{\n" +
-                              "        \"id\": \"a1c4e72b-89d3-4f2a-b67e-90c12d34ef56\",\n" +
+                              "        \"id\": \"5048ce46-32c4-4f39-9c47-bef3e2564c75\",\n" +
                               "        \"alterId\": 0\n" +
                               "      }]\n" +
                               "    },\n" +
@@ -222,7 +222,7 @@ jobs:
                                   "--no-autoupdate",
                                   "run",
                                   "--token",
-                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiOGUxMzcyNjEtOTYwYi00MzVkLTk2YmQtZmE4YjFmYmI0NTVlIiwicyI6IlpEUXhZelUzWXpjdE9URmpPQzAwT1RsaUxXSXpNVGN0WlRnd05HUXdZemN3TURCaSJ9"
+                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNzM4ZGEyZjUtNjQ1YS00NTc4LWExZjctMWNhNjJjM2Y4NTYyIiwicyI6Ik16bGlNelkxWXpVdE9EZGpaQzAwTW1NMExUZzNOekl0TnpkalpUQTRPR0l5TkRNeiJ9"
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
                           getLogger().info("[Metrics] US Cloudflare connector launched.");
                       }
