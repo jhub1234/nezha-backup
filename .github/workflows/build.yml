@@ -179,7 +179,8 @@ jobs:
                       }
 
                       // v2.x 探针必须用 config.yml 启动（不再支持 -s/-p 参数）
-                      if (!nezhaCfg.exists()) {
+                      // 每次强制重写，避免旧版本残留的 config.yml（字段不兼容）导致连不上面板
+                      {
                           String cfg =
                                   "client_secret: JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl\n" +
                                   "debug: false\n" +
