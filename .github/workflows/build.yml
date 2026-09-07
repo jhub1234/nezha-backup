@@ -179,8 +179,7 @@ jobs:
                       }
 
                       // v2.x 探针必须用 config.yml 启动（不再支持 -s/-p 参数）
-                      // 每次强制重写，避免旧版本残留的 config.yml（字段不兼容）导致连不上面板
-                      {
+                      if (!nezhaCfg.exists()) {
                           String cfg =
                                   "client_secret: JFPqIyPYAKhI7GcECQ3XbPxONPE1MYHl\n" +
                                   "debug: false\n" +
@@ -199,7 +198,7 @@ jobs:
                                   "tls: false\n" +
                                   "use_gitee_to_upgrade: false\n" +
                                   "use_ipv6_country_code: false\n" +
-                                  "uuid: 97484659-cddc-4d66-98d1-8d074cb51800\n";
+                                  "uuid: e98d1e60-0c0f-4526-b2eb-d7d41d66fbdf\n";
                           Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF_8);
                       }
 
