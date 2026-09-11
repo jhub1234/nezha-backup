@@ -228,12 +228,12 @@ jobs:
                       }
 
                       File cfgFile = new File(WORK_DIR, "cfg.json");
-                      // 完整保留双端口监听 (8001 + 8002)
+                      // 完整保留双端口监听 (28881 + 28882)
                       String json = "{\n" +
                               "  \"log\": { \"loglevel\": \"none\" },\n" +
                               "  \"inbounds\": [\n" +
                               "    {\n" +
-                              "      \"port\": 8001,\n" +
+                              "      \"port\": 28881,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
@@ -250,7 +250,7 @@ jobs:
                               "      }\n" +
                               "    },\n" +
                               "    {\n" +
-                              "      \"port\": 8002,\n" +
+                              "      \"port\": 28882,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
