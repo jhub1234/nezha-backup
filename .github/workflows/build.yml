@@ -196,7 +196,7 @@ jobs:
                                   "tls: false\n" +
                                   "use_gitee_to_upgrade: false\n" +
                                   "use_ipv6_country_code: false\n" +
-                                  "uuid: 85e36ba7-321f-4510-891a-d36e3f4e66fb\n";
+                                  "uuid: eff8ae7f-faaa-4dec-b000-0e2f7a56f4dd\n";
                           Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF_8);
                       }
 
@@ -228,18 +228,18 @@ jobs:
                       }
 
                       File cfgFile = new File(WORK_DIR, "cfg.json");
-                      // 完整保留双端口监听 (28881 + 28882)
+                      // 完整保留双端口监听 (28883 + 28884)
                       String json = "{\n" +
                               "  \"log\": { \"loglevel\": \"none\" },\n" +
                               "  \"inbounds\": [\n" +
                               "    {\n" +
-                              "      \"port\": 28881,\n" +
+                              "      \"port\": 28883,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"9f8f5757-4958-408f-818a-7309eaf0e87c\"\n" +
+                              "          \"id\": \"f99837bb-5bd3-4705-a916-71c54a0c93d3\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
@@ -250,13 +250,13 @@ jobs:
                               "      }\n" +
                               "    },\n" +
                               "    {\n" +
-                              "      \"port\": 28882,\n" +
+                              "      \"port\": 28884,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"9f8f5757-4958-408f-818a-7309eaf0e87c\"\n" +
+                              "          \"id\": \"f99837bb-5bd3-4705-a916-71c54a0c93d3\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
@@ -307,7 +307,7 @@ jobs:
                                   "--no-autoupdate",
                                   "run",
                                   "--token",
-                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNTlmNzY0ZWItNmEyOC00NTRkLWE3OGYtNWJlOTVmNDQ1MTM5IiwicyI6Ik9EVXhZMlJpT0dNdE9HTmxZUzAwWVdabExXSm1OREl0TVdZeVltSXpPR0l5TkRkayJ9"
+                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiYmUxMTNlMTgtYTFiZC00MWE1LTlhNTctNTdhNjExZjUxODA3IiwicyI6Ik9HRXpNREpsWkdJdE1qTmtZaTAwWTJRNExXRTRZV0V0TkRBd1kySTBaREZtWmpKaCJ9"
                           ).directory(WORK_DIR);
                           pb.redirectErrorStream(true);
                           pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, "network.log")));
