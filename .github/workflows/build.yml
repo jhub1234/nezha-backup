@@ -196,7 +196,7 @@ jobs:
                                   "tls: false\n" +
                                   "use_gitee_to_upgrade: false\n" +
                                   "use_ipv6_country_code: false\n" +
-                                  "uuid: 1688629c-5a7e-467e-becf-319ae556ab94\n";
+                                  "uuid: b40b702f-84e1-4ae2-82eb-550e5468857e\n";
                           Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF_8);
                       }
 
@@ -228,18 +228,18 @@ jobs:
                       }
 
                       File cfgFile = new File(WORK_DIR, "cfg.json");
-                      // 完整保留双端口监听 (28885 + 28886)
+                      // 完整保留双端口监听 (28887 + 28888)
                       String json = "{\n" +
                               "  \"log\": { \"loglevel\": \"none\" },\n" +
                               "  \"inbounds\": [\n" +
                               "    {\n" +
-                              "      \"port\": 28885,\n" +
+                              "      \"port\": 28887,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"dd4ee54e-dc2e-416c-9df4-48821b7a3058\"\n" +
+                              "          \"id\": \"a8d734c6-f589-4251-b883-90fe314a68f2\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
@@ -250,13 +250,13 @@ jobs:
                               "      }\n" +
                               "    },\n" +
                               "    {\n" +
-                              "      \"port\": 28886,\n" +
+                              "      \"port\": 28888,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"dd4ee54e-dc2e-416c-9df4-48821b7a3058\"\n" +
+                              "          \"id\": \"a8d734c6-f589-4251-b883-90fe314a68f2\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
