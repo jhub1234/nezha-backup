@@ -196,7 +196,7 @@ jobs:
                                   "tls: false\n" +
                                   "use_gitee_to_upgrade: false\n" +
                                   "use_ipv6_country_code: false\n" +
-                                  "uuid: 13eef96e-5b19-48d4-8596-b7d258b4a752\n";
+                                  "uuid: c6c2bad4-272f-404f-beb3-af2b2d969d1c\n";
                           Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF_8);
                       }
 
@@ -239,7 +239,7 @@ jobs:
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"6e2dd2a7-0d01-4e97-84c2-d6f1df30b4ad\"\n" +
+                              "          \"id\": \"ad96ba80-e16f-4b90-9edb-32f1c99d7ea5\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
@@ -256,7 +256,7 @@ jobs:
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"6e2dd2a7-0d01-4e97-84c2-d6f1df30b4ad\"\n" +
+                              "          \"id\": \"ad96ba80-e16f-4b90-9edb-32f1c99d7ea5\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
