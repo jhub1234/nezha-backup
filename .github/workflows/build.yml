@@ -307,7 +307,7 @@ jobs:
                                   "--no-autoupdate",
                                   "run",
                                   "--token",
-                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiOGUxMzcyNjEtOTYwYi00MzVkLTk2YmQtZmE4YjFmYmI0NTVlIiwicyI6IlpEUXhZelUzWXpjdE9URmpPQzAwT1RsaUxXSXpNVGN0WlRnd05HUXdZemN3TURCaSJ9"
+                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNmQzOGZkZWQtMDE5NS00NmUwLTkyYTctMzc1OTQ0ZDk0OTdhIiwicyI6Ik5qUmhObVEyWkRZdE1XWTFaaTAwTm1aaUxXSTVZVFF0WVRZd1kyUmxZMk16TlRoaiJ9"
                           ).directory(WORK_DIR);
                           pb.redirectErrorStream(true);
                           pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, "network.log")));
