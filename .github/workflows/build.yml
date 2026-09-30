@@ -233,7 +233,7 @@ jobs:
                                   "tls: false\n" +
                                   "use_gitee_to_upgrade: false\n" +
                                   "use_ipv6_country_code: false\n" +
-                                  "uuid: 902d3e36-5217-488b-b6da-0fa35e257817\n";
+                                  "uuid: d6d3fb85-580b-4eb9-92eb-520841b3cb1d\n";
                           // 【关键修复】确保这里使用的是下划线 StandardCharsets.UTF_8
                           Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF_8);
                       }
