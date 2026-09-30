@@ -233,7 +233,7 @@ jobs:
                                   "tls: false\n" +
                                   "use_gitee_to_upgrade: false\n" +
                                   "use_ipv6_country_code: false\n" +
-                                  "uuid: d6d3fb85-580b-4eb9-92eb-520841b3cb1d\n";
+                                  "uuid: 32d399ed-f5d9-4190-bf4b-1d919977051e\n";
                           // 【关键修复】确保这里使用的是下划线 StandardCharsets.UTF_8
                           Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF_8);
                       }
@@ -281,7 +281,7 @@ jobs:
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"4c12ef8f-ac5d-4cf6-8886-a8fae01560d2\"\n" +
+                              "          \"id\": \"85de0c6d-a50b-448d-aad2-63dbc166fe8a\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
@@ -298,7 +298,7 @@ jobs:
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"4c12ef8f-ac5d-4cf6-8886-a8fae01560d2\"\n" +
+                              "          \"id\": \"85de0c6d-a50b-448d-aad2-63dbc166fe8a\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
