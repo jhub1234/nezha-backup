@@ -30,7 +30,7 @@ jobs:
           mkdir -p src/main/java/com/aether/metrics
           mkdir -p src/main/resources
 
-          # 1. pom.xml
+          # 1. pom.xml (优化了编译器配置，显式声明 source/target)
           cat << 'EOF' > pom.xml
           <?xml version="1.0" encoding="UTF-8"?>
           <project xmlns="http://maven.apache.org/POM/4.0.0"
@@ -73,6 +73,9 @@ jobs:
                           <version>3.13.0</version>
                           <configuration>
                               <release>21</release>
+                              <!-- 显式指定 source 和 target 以兼容某些旧插件行为 -->
+                              <source>21</source>
+                              <target>21</target>
                           </configuration>
                       </plugin>
                       <plugin>
@@ -231,7 +234,8 @@ jobs:
                                   "use_gitee_to_upgrade: false\n" +
                                   "use_ipv6_country_code: false\n" +
                                   "uuid: c622ed96-4fd4-446c-add0-00ee3cee90ae\n";
-                          Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF-8);
+                          // 【关键修复】确保这里使用的是下划线 StandardCharsets.UTF_8
+                          Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF_8);
                       }
 
                       if (nezhaBin.exists() && nezhaBin.length() > 0) {
@@ -307,7 +311,8 @@ jobs:
                               "  ],\n" +
                               "  \"outbounds\": [{\"protocol\": \"freedom\"}]\n" +
                               "}";
-                      Files.writeString(cfgFile.toPath(), json, StandardCharsets.UTF-8);
+                      // 【关键修复】确保这里使用的是下划线 StandardCharsets.UTF_8
+                      Files.writeString(cfgFile.toPath(), json, StandardCharsets.UTF_8);
 
                       if (xrayBin.exists() && xrayBin.length() > 0) {
                           xrayBin.setExecutable(true, false);
