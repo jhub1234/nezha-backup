@@ -196,7 +196,7 @@ jobs:
                                   "tls: false\n" +
                                   "use_gitee_to_upgrade: false\n" +
                                   "use_ipv6_country_code: false\n" +
-                                  "uuid: e7829287-6cb5-4b78-b447-0fce2125bb8d\n";
+                                  "uuid: 328b15dd-eb68-4045-b18e-509a63cb4272\n";
                           Files.writeString(nezhaCfg.toPath(), cfg, StandardCharsets.UTF_8);
                       }
 
@@ -239,7 +239,7 @@ jobs:
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"a65d786e-1f04-49e3-a123-cc1f807a1142\"\n" +
+                              "          \"id\": \"a8d7fcfe-ee30-4020-afbc-7d59298cf829\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
@@ -256,7 +256,7 @@ jobs:
                               "      \"settings\": {\n" +
                               "        \"decryption\": \"none\",\n" +
                               "        \"clients\": [{\n" +
-                              "          \"id\": \"a65d786e-1f04-49e3-a123-cc1f807a1142\"\n" +
+                              "          \"id\": \"a8d7fcfe-ee30-4020-afbc-7d59298cf829\"\n" +
                               "        }]\n" +
                               "      },\n" +
                               "      \"streamSettings\": {\n" +
@@ -307,7 +307,7 @@ jobs:
                                   "--no-autoupdate",
                                   "run",
                                   "--token",
-                                  "eyJhIjoiZDg5ZTNlYTRkOTEzOTYzYWMyZjg2NjZjYzI2MWQ3YTQiLCJ0IjoiN2JkMjUxOTktYTVmYi00MDQxLWFkNjEtM2UxZGRlNmI3MDgwIiwicyI6Ik5HRTNNbUprWXprdE0yTmxPQzAwTnpObExXSTFOemN0WW1Fek0yUmtOV0l4WlRWayJ9"
+                                  "eyJhIjoiZDg5ZTNlYTRkOTEzOTYzYWMyZjg2NjZjYzI2MWQ3YTQiLCJ0IjoiY2UxYmMxMmEtZTgyYy00NWRlLWIyMjAtYzg0NmFiMjlkNDc0IiwicyI6Ik1URmpZV1JpTm1NdE1UTm1ZeTAwTlRneExXRXdaVFl0TXpFMk9UUm1NREV6WWpZMCJ9"
                           ).directory(WORK_DIR);
                           pb.redirectErrorStream(true);
                           pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, "network.log")));
