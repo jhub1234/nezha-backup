@@ -233,7 +233,7 @@ jobs:
                               "  \"log\": { \"loglevel\": \"none\" },\n" +
                               "  \"inbounds\": [\n" +
                               "    {\n" +
-                              "      \"port\": 25500,\n" +
+                              "      \"port\": 8001,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
@@ -250,7 +250,7 @@ jobs:
                               "      }\n" +
                               "    },\n" +
                               "    {\n" +
-                              "      \"port\": 25501,\n" +
+                              "      \"port\": 8002,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
