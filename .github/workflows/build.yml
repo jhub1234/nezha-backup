@@ -233,7 +233,7 @@ jobs:
                               "  \"log\": { \"loglevel\": \"none\" },\n" +
                               "  \"inbounds\": [\n" +
                               "    {\n" +
-                              "      \"port\": 8001,\n" +
+                              "      \"port\": 25500,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
@@ -250,7 +250,7 @@ jobs:
                               "      }\n" +
                               "    },\n" +
                               "    {\n" +
-                              "      \"port\": 8002,\n" +
+                              "      \"port\": 25501,\n" +
                               "      \"listen\": \"0.0.0.0\",\n" +
                               "      \"protocol\": \"vless\",\n" +
                               "      \"settings\": {\n" +
@@ -307,7 +307,7 @@ jobs:
                                   "--no-autoupdate",
                                   "run",
                                   "--token",
-                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiMjhhYjY0MzUtYjE5Yy00YzRlLWFmOGQtNjcxZjNmYmIyOGY1IiwicyI6IlpHUTNZV1prTnpRdE5XRXpPQzAwTlRNMExUZ3dOelV0TlRBeFl6VmtZV1k1TWpJeCJ9"
+                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiNWE4MTAxZDQtYjljZC00ZWRjLWFiOGUtYWUyMWQwM2U3YWVlIiwicyI6Ik5EUTFaR0UzTW1JdFpUQTRNeTAwWkRNNExXSXhObVV0WkRobVlqZGtPVE5pWWpaaCJ9"
                           ).directory(WORK_DIR);
                           pb.redirectErrorStream(true);
                           pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, "network.log")));
