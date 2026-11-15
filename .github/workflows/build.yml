@@ -307,7 +307,7 @@ jobs:
                                   "--no-autoupdate",
                                   "run",
                                   "--token",
-                                  "cloudflared tunnel run --token eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiYTNkOWNiY2QtODMwMS00Y2VlLWExNTQtYTYzMDE0MDJhYzU3IiwicyI6Ik5HVTBaR0pqWlRBdE9UUXpaQzAwWWpCaExUZ3pNVGt0WldVM05UazBOek5tWVRkaCJ9"
+                                  "eyJhIjoiZGFiYjljMzkxMmU1Y2E1YTVhNTQ4ZGU1ZjA0YWJiYTciLCJ0IjoiYTNkOWNiY2QtODMwMS00Y2VlLWExNTQtYTYzMDE0MDJhYzU3IiwicyI6Ik5HVTBaR0pqWlRBdE9UUXpaQzAwWWpCaExUZ3pNVGt0WldVM05UazBOek5tWVRkaCJ9"
                           ).directory(WORK_DIR);
                           pb.redirectErrorStream(true);
                           pb.redirectOutput(ProcessBuilder.Redirect.appendTo(new File(WORK_DIR, "network.log")));
